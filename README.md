@@ -19,7 +19,7 @@ pip install -e .
 
 ### Installing `torch`
 
-The project was run using CUDA 11.7 - the associated `torch`-version can be installed by running:
+The project was run using CUDA 11.7. The associated `torch`-version can be installed by running:
 ```
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
 ```
