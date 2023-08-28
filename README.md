@@ -3,6 +3,28 @@ Active Bayesian Deep Learning
 
 Methods related to Active Bayesian Deep Learning, including use cases on various data sets.
 
+Setup
+------------
+
+Start by creating a virtual environment - experiments were run and tested with Python 3.11.
+```
+conda create -n abdl python=3.11
+conda activate abdl
+```
+
+Install the requirements and the repository as a module by running the following from the root:
+```
+pip install -e .
+```
+
+### Installing `torch`
+
+The project was run using CUDA 11.7 - the associated `torch`-version can be installed by running:
+```
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu117
+```
+
+
 Project Organization
 ------------
 
