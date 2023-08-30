@@ -9,6 +9,16 @@ class AcquisitionFunction:
     def __call__(self, value: Union[int, float]):
         return None
 
+class Random(AcquisitionFunction):
+
+    def __init__(self, query_n_points):
+        super().__init__(name='Random', query_n_points=query_n_points)
+
+    def __call__(self, pool_probs: np.ndarray, return_sorted: bool = True) -> Tuple[Optional[np.ndarray], np.ndarray]:
+        # Select randomly from pool according to uniform distribution
+        n_samples = self.query_n_points if self.query_n_points is not None else len(pool_probs)
+        return np.ones(n_samples), np.random.randint(0, len(pool_probs), size=n_samples) 
+
 class VariationRatios(AcquisitionFunction):
 
     def __init__(self, query_n_points):
