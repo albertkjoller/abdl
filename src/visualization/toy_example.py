@@ -1,0 +1,114 @@
+
+import numpy as np
+
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+
+def plot_data(Xtrain, ytrain, Xtest, ytest, Xpool, ypool):
+    fig = plt.figure(figsize=(16, 5))
+
+    ax = fig.add_subplot(131)
+    for i in range(2):
+        ax.scatter(Xtrain[ytrain == i, 0], Xtrain[ytrain == i, 1], color=f'C{i}', label=f'Class {i}')
+    ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+    ax.set_xlim([-1.5, 2.5]); ax.set_ylim([-1, 1.5])
+    ax.set_title('Initial training data, $\mathcal{D}_{train}$')
+    ax.legend()
+
+    ax = fig.add_subplot(132)
+    for i in range(2):
+        ax.scatter(Xtest[ytest == i, 0], Xtest[ytest == i, 1], color=f'C{i}', label=f'Class {i}')
+    ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+    ax.set_xlim([-1.5, 2.5]); ax.set_ylim([-1, 1.5])
+    ax.set_title('Test data, $\mathcal{D}_{test}$')
+    ax.legend()
+
+    ax = fig.add_subplot(133)
+    ax.scatter(Xpool[:, 0], Xpool[:, 1], color=f'gray')
+    ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+    ax.set_xlim([-1.5, 2.5]); ax.set_ylim([-1, 1.5])
+    ax.set_title('Unlabelled pool, $\mathcal{D}_{pool}$')
+    plt.show()
+
+def add_colorbar(im, fig, ax):
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+
+def get_density_grid(model, x1_low, x1_high, x2_low, x2_high, P=200):
+    # Generate a sample 2D density grid
+    x1              = np.linspace(x1_low, x1_high, P)
+    x2              = np.linspace(x2_low, x2_high, P)
+    X1, X2          = np.meshgrid(x1, x2)
+    XX              = np.column_stack((X1.ravel(), X2.ravel()))
+
+    # Get uncertainty output from model
+    density_grid    = model.predict_proba(XX)[:, 0].reshape(P, P) # binary case
+    return x1, x2, density_grid
+
+def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, zoom=([-2, 2], [-2, 2]), P=200, figsize=(6,5), ax=None, fig=None):
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
+        ax      = ax[0][0]
+
+    # Get density grid
+    x1, x2, density_grid = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
+    
+    # Plot density grid
+    im = ax.pcolormesh(x1, x2, density_grid, cmap=plt.cm.RdBu_r, norm=colors.CenteredNorm(0.5), shading='auto')
+
+    # Plot training points
+    ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
+
+    # Plot all data, colored by respective category
+    X_, y_ = np.append(Xtrain, Xtest, axis=0), np.append(ytrain, ytest)
+    for i in range(2):
+        ax.scatter(X_[y_ == i, 0], X_[y_ == i, 1], color=f'C{i}', label=f'Class {i}', s=20)
+
+    # Add label
+    ax.set_xlabel('$x_1$');      
+    ax.set_ylabel('$x_2$')
+    ax.set_xlim(zoom[0]);    
+    ax.set_ylim(zoom[1])
+    ax.set_title(f'Decision boundary')
+
+    # Add colorbar
+    add_colorbar(im, fig, ax)
+    return ax
+
+def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], [-2, 2]), P=200, ax=None, fig=None):
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
+        ax      = ax[0][0]
+
+    # Get density grid
+    x1, x2, density_grid = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
+    
+    # Get acquisition function values
+    density_grid_matrix     = np.vstack([density_grid.flatten(), 1-density_grid.flatten()]).T
+    acq_scores, _           = acq_fun(density_grid_matrix, return_sorted=False)
+    acq_score_grid          = acq_scores.reshape(P, P)
+
+    # Plot density grid
+    im = ax.pcolormesh(x1, x2, acq_score_grid, cmap=plt.cm.Greens, norm=colors.Normalize(), shading='auto')
+
+    # Plot unlabelled pool
+    ax.scatter(Xpool[:, 0], Xpool[:, 1], color=f'gray', label=f'Unlabelled pool', s=20, alpha=0.5)
+    # Plot training points
+    ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
+    # Color training points by their respective category
+    for i in range(2):
+        ax.scatter(Xtrain[ytrain == i, 0], Xtrain[ytrain == i, 1], color=f'C{i}', label=f'Class {i}', s=20)
+
+    # Add label
+    ax.set_xlabel('$x_1$');      
+    ax.set_ylabel('$x_2$')
+    ax.set_xlim(zoom[0]);    
+    ax.set_ylim(zoom[1])
+    ax.set_title(f'Acquisition function - {acq_fun.name}')
+
+    # Add colorbar
+    add_colorbar(im, fig, ax)
+    return ax
