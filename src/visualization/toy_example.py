@@ -6,7 +6,7 @@ import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-def plot_data(Xtrain, ytrain, Xtest, ytest, Xpool, ypool):
+def plot_moons(Xtrain, ytrain, Xtest, ytest, Xpool, ypool):
     fig = plt.figure(figsize=(16, 5))
 
     ax = fig.add_subplot(131)
@@ -32,6 +32,32 @@ def plot_data(Xtrain, ytrain, Xtest, ytest, Xpool, ypool):
     ax.set_title('Unlabelled pool, $\mathcal{D}_{pool}$')
     plt.show()
 
+def plot_multiclass(Xtrain, ytrain, Xtest, ytest, Xpool, ypool, num_classes=4):
+    fig = plt.figure(figsize=(16, 5))
+
+    ax = fig.add_subplot(131)
+    for i in range(num_classes):
+        ax.scatter(Xtrain[ytrain == i, 0], Xtrain[ytrain == i, 1], color=f'C{i}', label=f'Class {i}')
+    ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+    ax.set_xlim([-0.5, 0.5]); ax.set_ylim([-0.5, 0.5])
+    ax.set_title('Initial training data, $\mathcal{D}_{train}$')
+    ax.legend()
+
+    ax = fig.add_subplot(132)
+    for i in range(num_classes):
+        ax.scatter(Xtest[ytest == i, 0], Xtest[ytest == i, 1], color=f'C{i}', label=f'Class {i}')
+    ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+    ax.set_xlim([-0.5, 0.5]); ax.set_ylim([-0.5, 0.5])
+    ax.set_title('Test data, $\mathcal{D}_{test}$')
+    ax.legend()
+
+    ax = fig.add_subplot(133)
+    ax.scatter(Xpool[:, 0], Xpool[:, 1], color=f'gray')
+    ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+    ax.set_xlim([-0.5, 0.5]); ax.set_ylim([-0.5, 0.5])
+    ax.set_title('Unlabelled pool, $\mathcal{D}_{pool}$')
+    plt.show()
+
 def add_colorbar(im, fig, ax):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -45,40 +71,61 @@ def get_density_grid(model, x1_low, x1_high, x2_low, x2_high, P=200):
     XX              = np.column_stack((X1.ravel(), X2.ravel()))
 
     # Get uncertainty output from model
-    density_grid    = model.predict_proba(XX)[:, 0].reshape(P, P) # binary case
+    density_grid    = model.predict_proba(XX)# [:, 0].reshape(P, P) # binary case
     return x1, x2, density_grid
 
-def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, zoom=([-2, 2], [-2, 2]), P=200, figsize=(6,5), ax=None, fig=None):
+def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, zoom=([-2, 2], [-2, 2]), P=200, figsize=(6,5), ax=None, fig=None, num_classes=2):
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
         ax      = ax[0][0]
 
     # Get density grid
     x1, x2, density_grid = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
-    
+
     # Plot density grid
-    im = ax.pcolormesh(x1, x2, density_grid, cmap=plt.cm.RdBu_r, norm=colors.CenteredNorm(0.5), shading='auto')
+    if num_classes == 2:
+        im = ax.pcolormesh(x1, x2, density_grid[:, 0].reshape(P, P), cmap=plt.cm.RdBu_r, norm=colors.CenteredNorm(0.5), shading='auto')
 
-    # Plot training points
-    ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
+        # Plot training points
+        ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
 
-    # Plot all data, colored by respective category
-    X_, y_ = np.append(Xtrain, Xtest, axis=0), np.append(ytrain, ytest)
-    for i in range(2):
-        ax.scatter(X_[y_ == i, 0], X_[y_ == i, 1], color=f'C{i}', label=f'Class {i}', s=20)
+        # Plot all data, colored by respective category
+        # X_, y_ = np.append(Xtrain, Xtest, axis=0), np.append(ytrain, ytest)
+        for i in range(num_classes):
+            ax.scatter(Xtrain[ytrain == i, 0], Xtrain[ytrain == i, 1], color=f'C{i if i!=3 else i+1}', label=f'Class {i}', s=20)
 
-    # Add label
-    ax.set_xlabel('$x_1$');      
-    ax.set_ylabel('$x_2$')
-    ax.set_xlim(zoom[0]);    
-    ax.set_ylim(zoom[1])
-    ax.set_title(f'Decision boundary')
+        # Add label
+        ax.set_xlabel('$x_1$');      
+        ax.set_ylabel('$x_2$')
+        ax.set_xlim(zoom[0]);    
+        ax.set_ylim(zoom[1])
+        ax.set_title(f'Decision boundary')
 
-    # Add colorbar
-    add_colorbar(im, fig, ax)
+        # Add colorbar
+        add_colorbar(im, fig, ax)
+    else:
+        gs = plt.GridSpec(2, 2, left=0.2, right=0.5, bottom=0.1, top=0.9)
+        subplots_axs = [plt.subplot(gs[i]) for i in range(4)]
+        for i, subplot_ax in enumerate(subplots_axs):
+            im_ = subplot_ax.pcolormesh(x1, x2, density_grid[:, i].reshape(P, P), cmap=plt.cm.RdBu_r, norm=colors.Normalize(vmin=0.0, vmax=1.0), shading='auto')
+
+            # Plot training points
+            subplot_ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
+
+            # Plot all data, colored by respective category
+            for class_idx in range(num_classes):
+                subplot_ax.scatter(Xtrain[ytrain == class_idx, 0], Xtrain[ytrain == class_idx, 1], color=f'C{class_idx if class_idx!=3 else class_idx+1}', label=f'Class {class_idx}', s=20)
+
+            subplot_ax.set_title(f'$P(y={i} | $' + '$\mathcal{D}_{train})$')
+            if i // 2 == 0:
+                subplot_ax.set_xticks([], [])      
+            if i % 2 == 1:
+                subplot_ax.set_yticks([], [])
+                add_colorbar(im_, fig, subplot_ax)
+            
     return ax
 
-def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], [-2, 2]), P=200, ax=None, fig=None):
+def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], [-2, 2]), P=200, ax=None, fig=None, num_classes=2):
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
         ax      = ax[0][0]
@@ -87,8 +134,8 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], 
     x1, x2, density_grid = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
     
     # Get acquisition function values
-    density_grid_matrix     = np.vstack([density_grid.flatten(), 1-density_grid.flatten()]).T
-    acq_scores, _           = acq_fun(density_grid_matrix, return_sorted=False)
+    # density_grid_matrix     = np.vstack([density_grid.flatten(), 1-density_grid.flatten()]).T
+    acq_scores, _           = acq_fun(density_grid, return_sorted=False)
     acq_score_grid          = acq_scores.reshape(P, P)
 
     # Plot density grid
@@ -99,8 +146,8 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], 
     # Plot training points
     ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
     # Color training points by their respective category
-    for i in range(2):
-        ax.scatter(Xtrain[ytrain == i, 0], Xtrain[ytrain == i, 1], color=f'C{i}', label=f'Class {i}', s=20)
+    for i in range(num_classes):
+        ax.scatter(Xtrain[ytrain == i, 0], Xtrain[ytrain == i, 1], color=f'C{i if i!=3 else i+1}', label=f'Class {i}', s=20)
 
     # Add label
     ax.set_xlabel('$x_1$');      
