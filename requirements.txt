@@ -15,3 +15,4 @@ notebook
 matplotlib
 seaborn
 imageio
+pandas

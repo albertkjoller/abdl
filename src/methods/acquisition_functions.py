@@ -22,7 +22,7 @@ class Random(AcquisitionFunction):
 class VariationRatios(AcquisitionFunction):
 
     def __init__(self, query_n_points):
-        super().__init__(name='Variation Ratios', query_n_points=query_n_points)
+        super().__init__(name='VariationRatios', query_n_points=query_n_points)
 
     def __call__(self, pool_probs: np.ndarray, return_sorted: bool = True) -> Tuple[np.ndarray, np.ndarray]:
         # Compute Variation Ratios and sort
