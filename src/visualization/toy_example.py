@@ -1,5 +1,7 @@
+from typing import List
 
 import numpy as np
+import pandas as pd
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -159,3 +161,37 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], 
     # Add colorbar
     add_colorbar(im, fig, ax)
     return ax
+
+def plot_performance_curves(results, acq_functions: List[str]):
+
+    fig, axs        = plt.subplots(1, 2, sharey=True, figsize=(12, 4))
+
+    # Plot binary case
+    pd.DataFrame.from_dict(results['binary']).plot(x='N_points', y=acq_functions, ax=axs[0])
+    for acq_fun in acq_functions:
+        axs[0].fill_between(
+            results['binary']['N_points'], 
+            results['binary'][acq_fun] - results['binary'][f'{acq_fun}_std'], 
+            results['binary'][acq_fun] + results['binary'][f'{acq_fun}_std'],
+            alpha=0.3,
+        )
+    axs[0].set_ylabel('Accuracy')
+    axs[0].set_xlabel('$N$ training points')
+    axs[0].set_title('Binary')
+    axs[0].set_xticks(results['binary']['N_points'][1::5], results['binary']['N_points'][1::5])
+    axs[0].legend(loc='lower right')
+
+    # Plot multiclass case
+    pd.DataFrame.from_dict(results['multiclass']).plot(x='N_points', y=['Random', 'VariationRatios', 'MinimumMargin', 'Entropy'], ax=axs[1])
+    for acq_fun in acq_functions:
+        axs[1].fill_between(
+            results['multiclass']['N_points'], 
+            results['multiclass'][acq_fun] - results['multiclass'][f'{acq_fun}_std'], 
+            results['multiclass'][acq_fun] + results['multiclass'][f'{acq_fun}_std'],
+            alpha=0.3,
+        )
+    axs[1].set_xlabel('$N$ training points')
+    axs[1].set_title('Multiclass')
+    axs[1].set_xticks(results['multiclass']['N_points'][::5], results['multiclass']['N_points'][::5])
+    axs[1].legend(loc='lower right')
+    return fig

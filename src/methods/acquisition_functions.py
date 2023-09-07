@@ -14,7 +14,7 @@ class Random(AcquisitionFunction):
     def __init__(self, query_n_points):
         super().__init__(name='Random', query_n_points=query_n_points)
 
-    def __call__(self, pool_probs: np.ndarray, return_sorted: bool = True) -> Tuple[Optional[np.ndarray], np.ndarray]:
+    def __call__(self, pool_probs: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[Optional[np.ndarray], np.ndarray]:
         # Select randomly from pool according to uniform distribution
         n_samples = self.query_n_points if self.query_n_points is not None else len(pool_probs)
         return np.ones(n_samples), np.random.randint(0, len(pool_probs), size=n_samples) 
@@ -24,7 +24,7 @@ class VariationRatios(AcquisitionFunction):
     def __init__(self, query_n_points):
         super().__init__(name='VariationRatios', query_n_points=query_n_points)
 
-    def __call__(self, pool_probs: np.ndarray, return_sorted: bool = True) -> Tuple[np.ndarray, np.ndarray]:
+    def __call__(self, pool_probs: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         # Compute Variation Ratios and sort
         acq_scores      = 1 - pool_probs.max(axis=1)
         if return_sorted:
@@ -42,7 +42,7 @@ class MinimumMargin(AcquisitionFunction):
     def __init__(self, query_n_points):
         super().__init__(name='MinimumMargin', query_n_points=query_n_points)
 
-    def __call__(self, pool_probs: np.ndarray, return_sorted: bool = True) -> Tuple[np.ndarray, np.ndarray]:
+    def __call__(self, pool_probs: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         # Compute Minimum margin (by maximizing reverse) and sort
         acq_scores      = 1 - (np.partition(pool_probs, -2, axis=1)[:, -1] - np.partition(pool_probs, -2, axis=1)[:, -2])
         if return_sorted:
@@ -60,7 +60,7 @@ class Entropy(AcquisitionFunction):
     def __init__(self, query_n_points):
         super().__init__(name='Entropy', query_n_points=query_n_points)
 
-    def __call__(self, pool_probs: np.ndarray, return_sorted: bool = True) -> Tuple[np.ndarray, np.ndarray]:
+    def __call__(self, pool_probs: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         # Compute Variation Ratios and sort
         acq_scores      = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
         
@@ -79,8 +79,11 @@ class BALD(AcquisitionFunction):
     def __init__(self, query_n_points):
         super().__init__(name='BALD', query_n_points=query_n_points)
 
-    def __call__(self, value: Union[int, float]):
-        return value
+    def __call__(self, value: Union[int, float], **kwargs):
+
+        # BALD score estimation as of Gal, et al.: https://arxiv.org/pdf/1703.02910.pdf 
+        
+        return kwargs['model']
 
 class EPIG(AcquisitionFunction):
 
