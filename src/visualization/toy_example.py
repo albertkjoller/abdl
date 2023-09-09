@@ -74,7 +74,7 @@ def get_density_grid(model, x1_low, x1_high, x2_low, x2_high, P=200):
 
     # Get uncertainty output from model
     density_grid    = model.predict_proba(XX)# [:, 0].reshape(P, P) # binary case
-    return x1, x2, density_grid
+    return x1, x2, density_grid, XX
 
 def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, zoom=([-2, 2], [-2, 2]), P=200, figsize=(6,5), ax=None, fig=None, num_classes=2):
     if ax is None:
@@ -82,7 +82,7 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, zoom=([-2, 2], [-2, 2
         ax      = ax[0][0]
 
     # Get density grid
-    x1, x2, density_grid = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
+    x1, x2, density_grid, _ = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
 
     # Plot density grid
     if num_classes == 2:
@@ -133,11 +133,10 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], 
         ax      = ax[0][0]
 
     # Get density grid
-    x1, x2, density_grid = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
+    x1, x2, _, XX = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
     
     # Get acquisition function values
-    # density_grid_matrix     = np.vstack([density_grid.flatten(), 1-density_grid.flatten()]).T
-    acq_scores, _           = acq_fun(density_grid, return_sorted=False)
+    acq_scores, _           = acq_fun(XX, return_sorted=False, model=model)
     acq_score_grid          = acq_scores.reshape(P, P)
 
     # Plot density grid
@@ -182,7 +181,7 @@ def plot_performance_curves(results, acq_functions: List[str]):
     axs[0].legend(loc='lower right')
 
     # Plot multiclass case
-    pd.DataFrame.from_dict(results['multiclass']).plot(x='N_points', y=['Random', 'VariationRatios', 'MinimumMargin', 'Entropy'], ax=axs[1])
+    pd.DataFrame.from_dict(results['multiclass']).plot(x='N_points', y=acq_functions, ax=axs[1])
     for acq_fun in acq_functions:
         axs[1].fill_between(
             results['multiclass']['N_points'], 

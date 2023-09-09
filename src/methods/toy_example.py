@@ -41,11 +41,8 @@ def run_active_learning_loop(
         performance['test'].append(model.score(Xtest, ytest))
         performance['N_points'].append(Xtrain.__len__())
 
-        # Get posterior predictive of data in the pool
-        pool_probs = model.predict_proba(Xpool)
-
         # Get acquisition function score and the items to query
-        _, query_idxs               = acq_fun(pool_probs)
+        _, query_idxs               = acq_fun(Xpool, model=model)
         X_next_query, y_next_query  = Xpool[query_idxs[0]], ypool[query_idxs[0]]
 
         if save_fig:
@@ -58,7 +55,7 @@ def run_active_learning_loop(
                 axs[0].legend()
 
             # Plot acquisition function across a grid
-            axs[1] = show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=zoom, P=100, ax=axs[1], fig=fig, num_classes=num_classes)
+            axs[1] = show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=zoom, P=35 if acq_fun.name == 'BALD' else 100, ax=axs[1], fig=fig, num_classes=num_classes)
             axs[1].scatter(X_next_query[0], X_next_query[1], color='orange', marker=(5, 1), s=100, label='New query')
             axs[1].legend(loc='upper right' if num_classes == 2 else 'center left')
 

@@ -3,6 +3,7 @@ from scipy.linalg import solve
 
 import pickle
 from collections import defaultdict
+from typing import List
 
 # Define wrapper function for sampling the GP Classifier
 def GP_sample(self, X, n_samples, seed=0, verbose=False):
@@ -43,9 +44,9 @@ def GP_sample(self, X, n_samples, seed=0, verbose=False):
     
     return output_probs
 
-def combine_results(save_dir: str = "../reports/2D_toy", seeds=[0]):
+def combine_results(acq_functions: List, save_dir: str = "../reports/2D_toy", seeds=[0]):
     train_results, test_results = defaultdict(dict), defaultdict(dict)
-    for i, acq_fun in enumerate(['Random', 'MinimumMargin', 'VariationRatios', 'Entropy']):
+    for i, acq_fun in enumerate(acq_functions):
         for experiment in ['binary', 'multiclass']:
                             
             for j, seed in enumerate(seeds):
