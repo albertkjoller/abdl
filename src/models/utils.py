@@ -7,6 +7,8 @@ from typing import List
 
 # Define wrapper function for sampling the GP Classifier
 def GP_sample(self, X, n_samples, seed=0, verbose=False):
+    ### ADJUSTED THE SKLEARN IMPLEMENTATION: https://github.com/scikit-learn/scikit-learn/blob/7f9bad99d/sklearn/gaussian_process/_gpc.py#L487 ###
+    ### They refer to Algorithm 3.2 of this paper: https://gaussianprocess.org/gpml/chapters/RW.pdf ###
     np.random.seed(seed)
     
     # Define sigmoid function

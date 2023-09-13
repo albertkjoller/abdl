@@ -43,15 +43,6 @@ class VariationRatios(AcquisitionFunction):
 
         # Compute Variation Ratios and sort
         acq_scores      = 1 - pool_probs.max(axis=1)
-        # if return_sorted:
-        #     pairs       = list(zip(*sorted(zip(acq_scores, np.arange(len(pool_probs))), key=lambda x: x[0], reverse=True)))
-        # else:
-        #     pairs       = [acq_scores, np.arange(len(pool_probs))]
-
-        # # return N maximum Variation Ratios
-        # max_acq_scores  = np.array(pairs[0][:self.query_n_points])
-        # query_idxs      = np.array(pairs[1][:self.query_n_points])
-        # return max_acq_scores, query_idxs 
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
 
 class MinimumMargin(AcquisitionFunction):
@@ -64,15 +55,6 @@ class MinimumMargin(AcquisitionFunction):
         
         # Compute Minimum margin (by maximizing reverse) and sort
         acq_scores      = 1 - (np.partition(pool_probs, -2, axis=1)[:, -1] - np.partition(pool_probs, -2, axis=1)[:, -2])
-        # if return_sorted:
-        #     pairs       = list(zip(*sorted(zip(acq_scores, np.arange(len(pool_probs))), key=lambda x: x[0], reverse=True)))
-        # else:
-        #     pairs       = [acq_scores, np.arange(len(pool_probs))]
-
-        # # return N maximum Variation Ratios
-        # max_acq_scores  = np.array(pairs[0][:self.query_n_points])
-        # query_idxs      = np.array(pairs[1][:self.query_n_points])
-        # return max_acq_scores, query_idxs 
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
     
 class Entropy(AcquisitionFunction):
@@ -85,16 +67,6 @@ class Entropy(AcquisitionFunction):
         
         # Compute Variation Ratios and sort
         acq_scores      = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
-        
-        # if return_sorted:
-        #     pairs       = list(zip(*sorted(zip(acq_scores, np.arange(len(pool_probs))), key=lambda x: x[0], reverse=True)))
-        # else:
-        #     pairs       = [acq_scores, np.arange(len(pool_probs))]
-
-        # # return N maximum Variation Ratios
-        # max_acq_scores  = np.array(pairs[0][:self.query_n_points])
-        # query_idxs      = np.array(pairs[1][:self.query_n_points])
-        # return max_acq_scores, query_idxs 
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
 
 class BALD(AcquisitionFunction):
@@ -117,7 +89,6 @@ class BALD(AcquisitionFunction):
         
         # Compute final acq-scores
         acq_scores          = entropy_term + disagreement_term
-
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
 
 class EPIG(AcquisitionFunction):
