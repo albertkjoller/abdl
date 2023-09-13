@@ -85,7 +85,7 @@ class BALD(AcquisitionFunction):
         entropy_term        = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
         # Sample the posterior and compute disagreement term
         posterior_samples   = kwargs['model'].sample(Xpool, n_samples=self.n_samples, seed=self.seed)
-        disagreement_term   = (posterior_samples * np.log(posterior_samples)).sum(axis=0).mean(axis=0) # TODO: fix the divide by zero and nan-encounter problems
+        disagreement_term   = (posterior_samples * np.log(posterior_samples + 1e-9)).sum(axis=0).mean(axis=0)
         
         # Compute final acq-scores
         acq_scores          = entropy_term + disagreement_term
