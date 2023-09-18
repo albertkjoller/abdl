@@ -7,6 +7,19 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+def plot_sine(Xtrain, ytrain, xaxis, gp_samples, N):
+    for i in range(2):
+        plt.scatter(Xtrain[ytrain==i], ytrain[ytrain==i], color=f"C{i}", label=f'Class {i}')
+
+    np.random.seed(42)
+    sigmoid = lambda x: 1 / (1 + np.exp(-x))
+    xaxis   = np.arange(0, 2*np.pi, 6 / N)
+    labels  = (sigmoid(np.sin(2*np.pi*xaxis / 4)) > 0.5).astype(int) # threshold a sigmoid
+    plt.plot(xaxis, labels, color='gray', ls='--', label='True function')
+
+    # for i in range(5):
+    plt.plot(xaxis, gp_samples[1].mean(axis=0), label='Mean of GP samples')
+    plt.legend()
 
 def plot_moons(Xtrain, ytrain, Xtest, ytest, Xpool, ypool):
     fig = plt.figure(figsize=(16, 5))

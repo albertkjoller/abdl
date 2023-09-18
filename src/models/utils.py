@@ -40,9 +40,8 @@ def GP_sample(self, X, n_samples, seed=0, verbose=False):
         Y = np.vstack([1-Y, Y])    
     
     if verbose:
-        numerator, denominator   = Y.mean(axis=1).T, numerator.sum(axis=1)
-        print(f"Sample mean:\n {numerator / denominator[:, None]}\n\nModel mean:\n {self.predict_proba(X)}")
-        assert np.allclose(self.predict_proba(X), numerator / denominator[:, None], atol=1e-2)
+        print(f"Sample mean:\n {Y.mean(axis=1).T}\n\nModel mean:\n {self.predict_proba(X)}")
+        assert np.allclose(self.predict_proba(X), Y.mean(axis=1).T, atol=1e-2)
     
     return Y / np.sum(Y, axis=0)
 
