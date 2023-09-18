@@ -1,3 +1,5 @@
+from typing import Optional, List, Tuple
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,6 +11,7 @@ import pickle
 from collections import defaultdict
 
 from src.methods.acquisition_functions import AcquisitionFunction
+from src.methods.target_input_distribution import TargetInputDistribution
 from src.visualization.toy_example import show_acquisition_grid, show_density_grid
 
 def run_active_learning_loop(
@@ -18,10 +21,11 @@ def run_active_learning_loop(
     ytrain: np.ndarray, ytest: np.ndarray, ypool: np.ndarray,
     n_iterations: int = 1, 
     save_dir: str = '../reports/2D_toy', 
-    save_fig=False, verbose=1, animate=False, fps=10.,
-    zoom=([-2, 3], [-2, 2.5]),
-    num_classes=2,
-    seed = 0,
+    save_fig: bool = False, verbose: int = 1, animate: bool = False, fps: int = 10.,
+    zoom: Tuple[List[float], List[float]] = ([-2, 3], [-2, 2.5]),
+    num_classes: int = 2,
+    seed: int = 0,
+    target_input_distribution: Optional[TargetInputDistribution] = None,
 ):
 
     # Create folder for saving results
@@ -55,9 +59,13 @@ def run_active_learning_loop(
                 axs[0].legend()
 
             # Plot acquisition function across a grid
-            axs[1] = show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=zoom, P=35 if acq_fun.name == 'BALD' else 100, ax=axs[1], fig=fig, num_classes=num_classes)
+            axs[1] = show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=zoom, P=35 if acq_fun.name in ['BALD', 'EPIG'] else 100, ax=axs[1], fig=fig, num_classes=num_classes)
             axs[1].scatter(X_next_query[0], X_next_query[1], color='orange', marker=(5, 1), s=100, label='New query')
             axs[1].legend(loc='upper right' if num_classes == 2 else 'center left')
+
+            # Plot target input distribution on top
+            if target_input_distribution is not None:
+                target_input_distribution.plot_2D(ax=axs[1], zoom=zoom)
 
             img_list.append(f'{save_dir}/{"binary" if num_classes == 2 else "multiclass"}/{acq_fun.name}/images/iteration{i}.png')
             plt.savefig(f'{save_dir}/{"binary" if num_classes == 2 else "multiclass"}/{acq_fun.name}/images/iteration{i}.png')

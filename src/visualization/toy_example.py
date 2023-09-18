@@ -19,7 +19,6 @@ def plot_sine(Xtrain, ytrain, xaxis, gp_samples, N):
 
     # for i in range(5):
     plt.plot(xaxis, gp_samples[1].mean(axis=0), label='Mean of GP samples')
-    plt.legend()
 
 def plot_moons(Xtrain, ytrain, Xtest, ytest, Xpool, ypool):
     fig = plt.figure(figsize=(16, 5))
