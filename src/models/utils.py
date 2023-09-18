@@ -30,15 +30,14 @@ def GP_sample(self, X, n_samples, seed=0, verbose=False):
         v               = solve(base.L_, base.W_sr_[:, np.newaxis] * K_star)  # Line 5
         var_f_star      = base.kernel_.diag(X) - np.einsum("ij,ij->j", v, v)
 
-        # Variance structure assumes independence between samples, i.e. we can sample from a univariate normal (meaning we will have some noise in the estimate)
         # Sample latent function value, z ~ N(f_star, sqrt(var_f_star))
         z               = np.random.normal(f_star, np.sqrt(var_f_star), size=(n_samples, num_points))
         # Pass sample through sigmoid (assuming OneVsRestClassifier)
         Y[i, :]         = sigmoid(z)
 
     if num_classes == 2:
-        Y = np.vstack([1-Y, Y])    
-    
+        return np.vstack([1-Y, Y])    
+        
     if verbose:
         print(f"Sample mean:\n {Y.mean(axis=1).T}\n\nModel mean:\n {self.predict_proba(X)}")
         assert np.allclose(self.predict_proba(X), Y.mean(axis=1).T, atol=1e-2)

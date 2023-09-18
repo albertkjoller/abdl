@@ -139,17 +139,19 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, zoom=([-2, 2], [-2, 2
             
     return ax
 
-def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], [-2, 2]), P=200, ax=None, fig=None, num_classes=2):
+def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], [-2, 2]), P=200, ax=None, fig=None, num_classes=2, normalize: bool = True):
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
         ax      = ax[0][0]
 
     # Get density grid
-    x1, x2, _, XX = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
+    x1, x2, _, XX = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P,)
     
     # Get acquisition function values
     acq_scores, _           = acq_fun(XX, return_sorted=False, model=model)
     acq_score_grid          = acq_scores.reshape(P, P)
+    if normalize:
+        acq_score_grid      = (acq_score_grid - acq_score_grid.min()) / (acq_score_grid.max() - acq_score_grid.min())
 
     # Plot density grid
     im = ax.pcolormesh(x1, x2, acq_score_grid, cmap=plt.cm.Greens, norm=colors.Normalize(), shading='auto')
@@ -167,7 +169,7 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], 
     ax.set_ylabel('$x_2$')
     ax.set_xlim(zoom[0]);    
     ax.set_ylim(zoom[1])
-    ax.set_title(f'Acquisition function - {acq_fun.name}')
+    ax.set_title(f'{"Normalized " if normalize == True else ""} Acquisition function - {acq_fun.name}')
 
     # Add colorbar
     add_colorbar(im, fig, ax)

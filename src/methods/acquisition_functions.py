@@ -96,8 +96,6 @@ class BALD(AcquisitionFunction):
         acq_scores          = entropy_term + disagreement_term
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
 
-
-from time import time
 class EPIG(AcquisitionFunction):
 
     def __init__(self, query_n_points, target_input_distribution: TargetInputDistribution, n_posterior_samples: int = 1000, n_target_input_samples: int = 100, seed: int = 0, version: str = 'mine'):
@@ -114,11 +112,34 @@ class EPIG(AcquisitionFunction):
 
     def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
 
+        # Sample x* values from the target input distribution
         Xstar                   = self.target_input_distribution.sample(self.n_target_input_samples, seed=self.seed)
-        posterior_samples       = kwargs['model'].sample(np.vstack([Xstar, Xpool]), n_samples=self.n_posterior_samples, seed=self.seed)
         
-        if self.version != 'mine':
-            probs_targ, probs_pool  = torch.tensor(posterior_samples[:, :, :len(Xstar)]), torch.tensor(posterior_samples[:, :, len(Xstar):])
+        if self.version == 'mine':
+            # Extract predictive probabilities for target samples and all points in the pool by exploiting Monte Carlo sampling of the posterior
+            probs_pool  = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
+            probs_targ  = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
+
+            # Define constants
+            num_classes = probs_pool.shape[0]
+            K, M        = self.n_posterior_samples, self.n_target_input_samples
+
+            # Compute the joint term of the expression (summation on the numerator part of the fraction in the log)
+            joint_term          = np.array([[(probs_pool[c, :, :] * probs_targ[c_star, :, j][:, None]).sum(axis=0) for j in range(M)] for c in range(num_classes) for c_star in range(num_classes)])
+            # Compute the independent term of the expression (summation on the denominator part of the fraction in the log)
+            independent_term    = np.array([[probs_pool[c, :, :].sum(axis=0) * probs_targ[c_star, :, j].sum(axis=0) for j in range(M)] for c in range(num_classes) for c_star in range(num_classes)])
+            # Compute log-term
+            log_term            = np.log(K * joint_term) - np.log(independent_term)
+            # Wrap it up and compute the final acquisition scores
+            acq_scores          = 1/M * (joint_term/K * log_term).sum(axis=(1, 0)) #.sum(axis=0)
+
+            # Sort values
+            return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
+
+        else: # outdated - found from their repository - it is quite slow, compared to my implementation and yielded the same result
+            ### TAKEN FROM THE AUTHORS OF THE EPIG PAPER: https://github.com/fbickfordsmith/epig/blob/main/src/uncertainty/bald.py 
+            probs_pool  = torch.tensor(kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed))
+            probs_targ  = torch.tensor(kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed))
 
             probs_pool = probs_pool.permute(1, 2, 0)  # [K, N_p, Cl]
             probs_targ = probs_targ.permute(1, 2, 0)  # [K, N_t, Cl]
@@ -137,20 +158,3 @@ class EPIG(AcquisitionFunction):
             conditional_acq_scores  = torch.sum(probs_pool_targ_joint * log_term, dim=(-2, -1))  # [N_p, N_t]
             marginal_acq_scores     = torch.mean(conditional_acq_scores, dim=(-1))  # [N_p]
             return self.order_acq_scores(acq_scores=marginal_acq_scores.numpy(), return_sorted=return_sorted)
-        
-        else:
-            probs_targ, probs_pool  = posterior_samples[:, :, :len(Xstar)], posterior_samples[:, :, len(Xstar):]
-
-            num_classes = posterior_samples.shape[0]
-            K, M = self.n_posterior_samples, self.n_target_input_samples
-
-            joint_term          = np.array([[(probs_pool[c, :, :] * probs_targ[c_star, :, j][:, None]).sum(axis=0) for c in range(num_classes) for c_star in range(num_classes)] for j in range(M)])
-            independent_term    = np.array([[probs_pool[c, :, :].sum(axis=0) * probs_targ[c_star, :, j].sum(axis=0) for c in range(num_classes) for c_star in range(num_classes)] for j in range(M)])
-            log_expr            = np.log( K * joint_term / independent_term )
-            acq_scores          = 1/M * (1/K * joint_term * log_expr).sum(axis=1).sum(axis=0)
-            # acq_scores          = 1 / M * content.sum(axis=1).sum(axis=0)
-
-            return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
-
-
-
