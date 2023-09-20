@@ -91,3 +91,4 @@ target/
 *.png
 *.pkl
 *.gif
+*.json

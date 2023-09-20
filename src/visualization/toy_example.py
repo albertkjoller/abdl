@@ -89,6 +89,8 @@ def get_density_grid(model, x1_low, x1_high, x2_low, x2_high, P=200):
     return x1, x2, density_grid, XX
 
 def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, zoom=([-2, 2], [-2, 2]), P=200, figsize=(6,5), ax=None, fig=None, num_classes=2):
+    zoom=([-1.1, 0.5], [-0.5, 0.5]) if num_classes == 4 else ([-2, 2], [-2, 2])
+
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
         ax      = ax[0][0]
@@ -139,7 +141,9 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, zoom=([-2, 2], [-2, 2
             
     return ax
 
-def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], [-2, 2]), P=200, ax=None, fig=None, num_classes=2, normalize: bool = True):
+def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], [-2, 2]), P=200, ax=None, fig=None, num_classes=2, normalize: bool = False):
+    zoom=([-1.1, 0.5], [-0.5, 0.5]) if num_classes == 4 else ([-2, 2], [-2, 2])
+
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
         ax      = ax[0][0]

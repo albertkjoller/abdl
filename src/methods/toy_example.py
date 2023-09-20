@@ -14,7 +14,7 @@ from src.methods.acquisition_functions import AcquisitionFunction
 from src.methods.target_input_distribution import TargetInputDistribution
 from src.visualization.toy_example import show_acquisition_grid, show_density_grid
 
-def run_active_learning_loop(
+def run_active_learning_loop_toy(
     model,
     acq_fun: AcquisitionFunction,
     Xtrain: np.ndarray, Xtest: np.ndarray, Xpool: np.ndarray, 
@@ -29,8 +29,9 @@ def run_active_learning_loop(
 ):
 
     # Create folder for saving results
-    os.makedirs(f'{save_dir}/{"binary" if num_classes == 2 else "multiclass"}/{acq_fun.name}', exist_ok=True)
-    os.makedirs(f'{save_dir}/{"binary" if num_classes == 2 else "multiclass"}/{acq_fun.name}/images', exist_ok=True)
+    os.makedirs(f'{save_dir}/{acq_fun.name}/seed{seed}', exist_ok=True)
+    if save_fig:
+        os.makedirs(f'{save_dir}/{acq_fun.name}/seed{seed}/images', exist_ok=True)
     img_list = []
 
     # Run active learning loop
@@ -67,8 +68,8 @@ def run_active_learning_loop(
             if target_input_distribution is not None:
                 target_input_distribution.plot_2D(ax=axs[1], zoom=zoom)
 
-            img_list.append(f'{save_dir}/{"binary" if num_classes == 2 else "multiclass"}/{acq_fun.name}/images/iteration{i}.png')
-            plt.savefig(f'{save_dir}/{"binary" if num_classes == 2 else "multiclass"}/{acq_fun.name}/images/iteration{i}.png')
+            img_list.append(f'{save_dir}/{acq_fun.name}/seed{seed}/images/iteration{i}.png')
+            plt.savefig(f'{save_dir}/{acq_fun.name}/seed{seed}/images/iteration{i}.png')
             plt.close()
 
         ### UPDATE TRAINING SET AND POOL ACCORDINGLY ###
@@ -103,7 +104,7 @@ def run_active_learning_loop(
         )
     
     # Store results
-    with open(f'{save_dir}/{"binary" if num_classes == 2 else "multiclass"}/{acq_fun.name}/performance_seed{seed}.pkl', 'wb') as f:
+    with open(f'{save_dir}/{acq_fun.name}/seed{seed}/performance.pkl', 'wb') as f:
         pickle.dump(performance, f)
 
     if save_fig and animate:
@@ -111,7 +112,7 @@ def run_active_learning_loop(
         images = [Image.open(path) for path in img_list]
 
         # Set output path for GIF
-        output_gif_path = f'{save_dir}/{"binary" if num_classes == 2 else "multiclass"}/{acq_fun.name}/querying_process.gif'
+        output_gif_path = f'{save_dir}/{acq_fun.name}/querying_process.gif'
         # Save GIF
         imageio.mimsave(output_gif_path, images, duration=(1000 * 1/fps))
 
