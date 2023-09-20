@@ -45,14 +45,13 @@ def GP_sample(self, X, n_samples, seed=0, verbose=False):
     return Y / np.sum(Y, axis=0)
 
 
-def combine_results(acq_functions: List, save_dir: str = "../reports/2D_toy", seeds=[0]):
+def combine_results(acq_functions: List, experiments: List[str], save_dir: str = "../reports/2D_toy", seeds=[0]):
     train_results, test_results = defaultdict(dict), defaultdict(dict)
-    for i, acq_fun in enumerate(acq_functions):
-        for experiment in ['binary', 'multiclass']:
-                            
+    for i, acq_fun in enumerate(acq_functions):           
+        for experiment in experiments:
             for j, seed in enumerate(seeds):
 
-                with open(f'{save_dir}/{experiment}/{acq_fun}/performance_seed{seed}.pkl', 'rb') as f:
+                with open(f'{save_dir}/{experiment}/{acq_fun}/seed{seed}/performance.pkl', 'rb') as f:
                     res         = pickle.load(f)
                     train_res   = np.array(res['train']).reshape(1, -1) if j == 0 else np.vstack([train_res, res['train']])
                     test_res    = np.array(res['test']).reshape(1, -1) if j == 0 else np.vstack([test_res, res['test']])
@@ -65,5 +64,5 @@ def combine_results(acq_functions: List, save_dir: str = "../reports/2D_toy", se
             test_results[experiment][acq_fun]           = np.mean(test_res, axis=0) 
             train_results[experiment][f'{acq_fun}_std'] = np.std(train_res, axis=0) / np.sqrt(train_res.shape[0])
             test_results[experiment][f'{acq_fun}_std']  = np.std(test_res, axis=0) / np.sqrt(train_res.shape[0])
-    
+
     return train_results, test_results

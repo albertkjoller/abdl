@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -88,8 +88,8 @@ def get_density_grid(model, x1_low, x1_high, x2_low, x2_high, P=200):
     density_grid    = model.predict_proba(XX)# [:, 0].reshape(P, P) # binary case
     return x1, x2, density_grid, XX
 
-def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, zoom=([-2, 2], [-2, 2]), P=200, figsize=(6,5), ax=None, fig=None, num_classes=2):
-    zoom=([-1.1, 0.5], [-0.5, 0.5]) if num_classes == 4 else ([-2, 2], [-2, 2])
+def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5), ax=None, fig=None, num_classes=2):
+    zoom=([-1.1, 0.5], [-0.5, 0.5]) if num_classes == 4 else ([-2, 3], [-2, 2.5])
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
@@ -141,7 +141,7 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, zoom=([-2, 2], [-2, 2
             
     return ax
 
-def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], [-2, 2]), P=200, ax=None, fig=None, num_classes=2, normalize: bool = False):
+def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, P=200, ax=None, fig=None, num_classes=2, normalize: bool = False):
     zoom=([-1.1, 0.5], [-0.5, 0.5]) if num_classes == 4 else ([-2, 2], [-2, 2])
 
     if ax is None:
@@ -179,36 +179,37 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, zoom=([-2, 2], 
     add_colorbar(im, fig, ax)
     return ax
 
-def plot_performance_curves(results, acq_functions: List[str]):
+def plot_performance_curves(results, experiments: Tuple[str, str], acq_functions: List[str]):
 
     fig, axs        = plt.subplots(1, 2, sharey=True, figsize=(12, 4))
 
-    # Plot binary case
-    pd.DataFrame.from_dict(results['binary']).plot(x='N_points', y=acq_functions, ax=axs[0])
-    for acq_fun in acq_functions:
-        axs[0].fill_between(
-            results['binary']['N_points'], 
-            results['binary'][acq_fun] - results['binary'][f'{acq_fun}_std'], 
-            results['binary'][acq_fun] + results['binary'][f'{acq_fun}_std'],
-            alpha=0.3,
-        )
-    axs[0].set_ylabel('Accuracy')
-    axs[0].set_xlabel('$N$ training points')
-    axs[0].set_title('Binary')
-    axs[0].set_xticks(results['binary']['N_points'][1::5], results['binary']['N_points'][1::5])
-    axs[0].legend(loc='lower right')
+    for i, experiment in enumerate(experiments):
+        # Plot binary case
+        pd.DataFrame.from_dict(results[experiment]).plot(x='N_points', y=acq_functions, ax=axs[i])
+        for acq_fun in acq_functions:
+            axs[i].fill_between(
+                results[experiment]['N_points'], 
+                results[experiment][acq_fun] - results[experiment][f'{acq_fun}_std'], 
+                results[experiment][acq_fun] + results[experiment][f'{acq_fun}_std'],
+                alpha=0.3,
+            )
+        axs[i].set_ylabel('Accuracy')
+        axs[i].set_xlabel('$N$ training points')
+        axs[i].set_title(experiment.upper())
+        axs[i].set_xticks(results[experiment]['N_points'][::5], results[experiment]['N_points'][::5])
+        axs[i].legend(loc='lower right')
 
-    # Plot multiclass case
-    pd.DataFrame.from_dict(results['multiclass']).plot(x='N_points', y=acq_functions, ax=axs[1])
-    for acq_fun in acq_functions:
-        axs[1].fill_between(
-            results['multiclass']['N_points'], 
-            results['multiclass'][acq_fun] - results['multiclass'][f'{acq_fun}_std'], 
-            results['multiclass'][acq_fun] + results['multiclass'][f'{acq_fun}_std'],
-            alpha=0.3,
-        )
-    axs[1].set_xlabel('$N$ training points')
-    axs[1].set_title('Multiclass')
-    axs[1].set_xticks(results['multiclass']['N_points'][::5], results['multiclass']['N_points'][::5])
-    axs[1].legend(loc='lower right')
+        # # Plot multiclass case
+        # pd.DataFrame.from_dict(results['multiclass']).plot(x='N_points', y=acq_functions, ax=axs[1])
+        # for acq_fun in acq_functions:
+        #     axs[1].fill_between(
+        #         results['multiclass']['N_points'], 
+        #         results['multiclass'][acq_fun] - results['multiclass'][f'{acq_fun}_std'], 
+        #         results['multiclass'][acq_fun] + results['multiclass'][f'{acq_fun}_std'],
+        #         alpha=0.3,
+        #     )
+        # axs[1].set_xlabel('$N$ training points')
+        # axs[1].set_title('Multiclass')
+        # axs[1].set_xticks(results['multiclass']['N_points'][::5], results['multiclass']['N_points'][::5])
+        # axs[1].legend(loc='lower right')
     return fig
