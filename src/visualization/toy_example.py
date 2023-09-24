@@ -100,7 +100,7 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5),
 
     # Plot density grid
     if num_classes == 2:
-        im = ax.pcolormesh(x1, x2, density_grid[:, 0].reshape(P, P), cmap=plt.cm.RdBu_r, norm=colors.CenteredNorm(0.5), shading='auto')
+        im = ax.pcolormesh(x1, x2, density_grid[:, 0].reshape(P, P), cmap=plt.cm.RdBu_r, norm=colors.Normalize(vmin=0., vmax=1.), shading='auto')
 
         # Plot training points
         ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
@@ -141,8 +141,11 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5),
             
     return ax
 
-def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, P=200, ax=None, fig=None, num_classes=2, normalize: bool = False):
-    zoom=([-1.1, 0.5], [-0.5, 0.5]) if num_classes == 4 else ([-2, 2], [-2, 2])
+def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, P=200, ax=None, fig=None, num_classes=2, auto_zoom=True, zoom = None, normalize: bool = False):
+    if auto_zoom:
+        zoom=([-1.1, 0.5], [-0.5, 0.5]) if num_classes == 4 else ([-2, 2], [-2, 2])
+    else:
+        assert zoom is not None
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)

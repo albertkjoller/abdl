@@ -73,6 +73,18 @@ class Entropy(AcquisitionFunction):
         acq_scores      = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
 
+class Entropy_temp(AcquisitionFunction):
+
+    def __init__(self, query_n_points):
+        super().__init__(name='Entropy', query_n_points=query_n_points)
+
+    def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+        pool_probs, _ = kwargs['model'].predict_proba(Xpool)
+        
+        # Compute Variation Ratios and sort
+        acq_scores      = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
+        return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
+
 class BALD(AcquisitionFunction):
 
     def __init__(self, query_n_points, n_posterior_samples: int = 1000, seed: int = 0):
@@ -96,6 +108,30 @@ class BALD(AcquisitionFunction):
         acq_scores          = entropy_term + disagreement_term
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
 
+class BALD_temp(AcquisitionFunction):
+
+    def __init__(self, query_n_points, n_posterior_samples: int = 1000, seed: int = 0):
+        # Set class-wide sampling parameters
+        self.n_posterior_samples    = n_posterior_samples
+        self.seed                   = seed
+
+        super().__init__(name='BALD', query_n_points=query_n_points)
+
+    def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+        pool_probs, posterior_samples = kwargs['model'].sample(Xpool, n_samples=self.n_posterior_samples, seed=self.seed)
+        
+        ### BALD score estimation as of Gal, et al.: https://arxiv.org/pdf/1703.02910.pdf 
+        # Compute entropy term
+        entropy_term        = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
+        # Sample the posterior and compute disagreement term
+        # posterior_samples   = kwargs['model'].sample(Xpool, n_samples=self.n_posterior_samples, seed=self.seed)
+        disagreement_term   = (posterior_samples * np.log(posterior_samples + 1e-9)).sum(axis=0).mean(axis=0)
+        
+        # Compute final acq-scores
+        acq_scores          = entropy_term + disagreement_term
+        return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
+
+
 class EPIG(AcquisitionFunction):
 
     def __init__(self, query_n_points, target_input_distribution: TargetInputDistribution, n_posterior_samples: int = 1000, n_target_input_samples: int = 100, seed: int = 0, version: str = 'mine'):
@@ -117,8 +153,8 @@ class EPIG(AcquisitionFunction):
         
         if self.version == 'mine':
             # Extract predictive probabilities for target samples and all points in the pool by exploiting Monte Carlo sampling of the posterior
-            probs_pool  = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
-            probs_targ  = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
+            _, probs_pool  = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
+            _, probs_targ  = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
 
             # Define constants
             num_classes = probs_pool.shape[0]
@@ -181,8 +217,8 @@ class GeneralEPIG(AcquisitionFunction):
         
         if self.version == 'mine':
             # Extract predictive probabilities for target samples and all points in the pool by exploiting Monte Carlo sampling of the posterior
-            probs_pool  = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
-            probs_targ  = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
+            _, probs_pool  = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
+            _, probs_targ  = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
 
             # Define constants
             num_classes = probs_pool.shape[0]
