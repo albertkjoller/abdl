@@ -47,13 +47,15 @@ def plot_moons(Xtrain, ytrain, Xtest, ytest, Xpool, ypool):
     plt.show()
 
 def plot_multiclass(Xtrain, ytrain, Xtest, ytest, Xpool, ypool, num_classes=4):
+    zoom = ([-1.5, 1.5], [-1, 4])
+
     fig = plt.figure(figsize=(16, 5))
 
     ax = fig.add_subplot(131)
     for i in range(num_classes):
         ax.scatter(Xtrain[ytrain == i, 0], Xtrain[ytrain == i, 1], color=f'C{i}', label=f'Class {i}')
     ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
-    ax.set_xlim([-0.5, 0.5]); ax.set_ylim([-0.5, 0.5])
+    ax.set_xlim(zoom[0]); ax.set_ylim(zoom[1])
     ax.set_title('Initial training data, $\mathcal{D}_{train}$')
     ax.legend()
 
@@ -61,14 +63,14 @@ def plot_multiclass(Xtrain, ytrain, Xtest, ytest, Xpool, ypool, num_classes=4):
     for i in range(num_classes):
         ax.scatter(Xtest[ytest == i, 0], Xtest[ytest == i, 1], color=f'C{i}', label=f'Class {i}')
     ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
-    ax.set_xlim([-0.5, 0.5]); ax.set_ylim([-0.5, 0.5])
+    ax.set_xlim(zoom[0]); ax.set_ylim(zoom[1])
     ax.set_title('Test data, $\mathcal{D}_{test}$')
     ax.legend()
 
     ax = fig.add_subplot(133)
     ax.scatter(Xpool[:, 0], Xpool[:, 1], color=f'gray')
     ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
-    ax.set_xlim([-0.5, 0.5]); ax.set_ylim([-0.5, 0.5])
+    ax.set_xlim(zoom[0]); ax.set_ylim(zoom[1])
     ax.set_title('Unlabelled pool, $\mathcal{D}_{pool}$')
     plt.show()
 
@@ -89,8 +91,7 @@ def get_density_grid(model, x1_low, x1_high, x2_low, x2_high, P=200):
     return x1, x2, density_grid, XX
 
 def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5), ax=None, fig=None, num_classes=2):
-    zoom=([-1.1, 0.5], [-0.5, 0.5]) if num_classes == 4 else ([-2, 3], [-2, 2.5])
-
+    zoom = ([-1.5, 1.5], [-1, 4]) if num_classes == 4 else ([-2, 3], [-2, 2])
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
         ax      = ax[0][0]
@@ -143,7 +144,8 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5),
 
 def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, P=200, ax=None, fig=None, num_classes=2, auto_zoom=True, zoom = None, normalize: bool = False):
     if auto_zoom:
-        zoom=([-1.1, 0.5], [-0.5, 0.5]) if num_classes == 4 else ([-2, 2], [-2, 2])
+        zoom = ([-1.5, 1.5], [-1, 4]) if num_classes == 4 else ([-2, 3], [-2, 2])
+
     else:
         assert zoom is not None
 

@@ -85,7 +85,7 @@ class Entropy_temp(AcquisitionFunction):
         acq_scores      = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
 
-class BALD(AcquisitionFunction):
+class BALD_old(AcquisitionFunction):
 
     def __init__(self, query_n_points, n_posterior_samples: int = 1000, seed: int = 0):
         # Set class-wide sampling parameters
@@ -108,7 +108,7 @@ class BALD(AcquisitionFunction):
         acq_scores          = entropy_term + disagreement_term
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
 
-class BALD_temp(AcquisitionFunction):
+class BALD(AcquisitionFunction):
 
     def __init__(self, query_n_points, n_posterior_samples: int = 1000, seed: int = 0):
         # Set class-wide sampling parameters
@@ -124,7 +124,6 @@ class BALD_temp(AcquisitionFunction):
         # Compute entropy term
         entropy_term        = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
         # Sample the posterior and compute disagreement term
-        # posterior_samples   = kwargs['model'].sample(Xpool, n_samples=self.n_posterior_samples, seed=self.seed)
         disagreement_term   = (posterior_samples * np.log(posterior_samples + 1e-9)).sum(axis=0).mean(axis=0)
         
         # Compute final acq-scores
@@ -208,7 +207,7 @@ class GeneralEPIG(AcquisitionFunction):
         self.seed                   = seed
         self.version                = version 
 
-        super().__init__(name='EPIG', query_n_points=query_n_points)
+        super().__init__(name='GeneralEPIG', query_n_points=query_n_points)
 
     def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
 

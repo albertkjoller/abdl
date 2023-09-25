@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.datasets import make_moons, make_classification
+from sklearn.datasets import make_moons, make_classification, make_blobs
 
 def generate_sine(N_initial, N_test, N_pool, seed=42):
     np.random.seed(42)
@@ -34,7 +34,8 @@ def generate_multiclass(N_initial_per_class, N_test, N_pool, num_classes=4, nois
     N = N_initial_per_class + N_test + N_pool
 
     # Generate moons dataset
-    X, y = make_classification(N, n_classes=num_classes, n_clusters_per_class=1, n_informative=2, n_features=2, n_redundant=0, scale=noise, random_state=0)
+    # X, y = make_classification(N, n_classes=num_classes, n_clusters_per_class=1, n_informative=2, n_features=2, n_redundant=0, scale=noise, random_state=0)
+    X, y = make_blobs(n_samples=N, centers=num_classes, cluster_std=noise, center_box=(-3, 3), random_state=0) 
 
     # Partition dataset
     Xtrain, ytrain  = np.vstack([X[y == i][:N_initial_per_class] for i in range(num_classes)]), np.hstack([y[y == i][:N_initial_per_class] for i in range(num_classes)])
