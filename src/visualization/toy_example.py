@@ -90,14 +90,14 @@ def get_density_grid(model, x1_low, x1_high, x2_low, x2_high, P=200):
     density_grid    = model.predict_proba(XX)# [:, 0].reshape(P, P) # binary case
     return x1, x2, density_grid, XX
 
-def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5), ax=None, fig=None, num_classes=2):
-    zoom = ([-1.5, 1.5], [-1, 4]) if num_classes == 4 else ([-2, 3], [-2, 2])
-    if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
-        ax      = ax[0][0]
+def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5), auto_zoom=True, zoom=None, ax=None, fig=None, num_classes=2):
+    if auto_zoom:
+        zoom = ([-1.5, 1.5], [-1, 4]) if num_classes == 4 else ([-2, 3], [-2, 2])
+    else:
+        assert zoom is not None
 
     # Get density grid
-    x1, x2, density_grid, _ = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
+    x1, x2, density_grid, XX = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P)
 
     # Plot density grid
     if num_classes == 2:
@@ -105,18 +105,17 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5),
 
         # Plot training points
         ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
-
         # Plot all data, colored by respective category
-        # X_, y_ = np.append(Xtrain, Xtest, axis=0), np.append(ytrain, ytest)
         for i in range(num_classes):
             ax.scatter(Xtrain[ytrain == i, 0], Xtrain[ytrain == i, 1], color=f'C{i if i!=3 else i+1}', label=f'Class {i}', s=20)
-
+        
         # Add label
         ax.set_xlabel('$x_1$');      
         ax.set_ylabel('$x_2$')
         ax.set_xlim(zoom[0]);    
         ax.set_ylim(zoom[1])
-        ax.set_title(f'Decision boundary')
+
+        ax.set_title(f'Posterior predictive')
 
         # Add colorbar
         add_colorbar(im, fig, ax)
@@ -128,7 +127,6 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5),
 
             # Plot training points
             subplot_ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
-
             # Plot all data, colored by respective category
             for class_idx in range(num_classes):
                 subplot_ax.scatter(Xtrain[ytrain == class_idx, 0], Xtrain[ytrain == class_idx, 1], color=f'C{class_idx if class_idx!=3 else class_idx+1}', label=f'Class {class_idx}', s=20)
@@ -140,22 +138,17 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5),
                 subplot_ax.set_yticks([], [])
                 add_colorbar(im_, fig, subplot_ax)
             
-    return ax
+    return ax, (x1, x2, density_grid, XX)
 
-def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, P=200, ax=None, fig=None, num_classes=2, auto_zoom=True, zoom = None, normalize: bool = False):
+def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, density_grid_outputs, P=200, ax=None, fig=None, num_classes=2, auto_zoom=True, zoom = None, normalize: bool = False):
+    # Get density grid outputs
+    x1, x2, _, XX = density_grid_outputs
+
     if auto_zoom:
         zoom = ([-1.5, 1.5], [-1, 4]) if num_classes == 4 else ([-2, 3], [-2, 2])
-
     else:
         assert zoom is not None
 
-    if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=figsize, squeeze=False)
-        ax      = ax[0][0]
-
-    # Get density grid
-    x1, x2, _, XX = get_density_grid(model, x1_low=zoom[0][0], x1_high=zoom[0][1], x2_low=zoom[1][0], x2_high=zoom[1][1], P=P,)
-    
     # Get acquisition function values
     acq_scores, _           = acq_fun(XX, return_sorted=False, model=model)
     acq_score_grid          = acq_scores.reshape(P, P)
@@ -175,11 +168,9 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, P=200, ax=None,
 
     # Add label
     ax.set_xlabel('$x_1$');      
-    ax.set_ylabel('$x_2$')
     ax.set_xlim(zoom[0]);    
     ax.set_ylim(zoom[1])
     ax.set_title(f'{"Normalized " if normalize == True else ""} Acquisition function - {acq_fun.name}')
-
     # Add colorbar
     add_colorbar(im, fig, ax)
     return ax
@@ -187,7 +178,6 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, P=200, ax=None,
 def plot_performance_curves(results, experiments: Tuple[str, str], acq_functions: List[str]):
 
     fig, axs        = plt.subplots(1, 2, sharey=True, figsize=(12, 4))
-
     for i, experiment in enumerate(experiments):
         # Plot binary case
         pd.DataFrame.from_dict(results[experiment]).plot(x='N_points', y=acq_functions, ax=axs[i])

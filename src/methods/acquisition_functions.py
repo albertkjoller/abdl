@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from torch.nn.functional import softmax
 
 from typing import Optional, Union, Tuple
 
@@ -31,11 +32,11 @@ class Random(AcquisitionFunction):
         super().__init__(name='Random', query_n_points=query_n_points)
 
     def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[Optional[np.ndarray], np.ndarray]:
-        pool_probs = kwargs['model'].predict_proba(Xpool)
+        # pool_probs = kwargs['model'].predict_proba(Xpool)
 
         # Select randomly from pool according to uniform distribution
-        n_samples = self.query_n_points if self.query_n_points is not None else len(pool_probs)
-        return np.ones(n_samples), np.random.randint(0, len(pool_probs), size=n_samples) 
+        n_samples = self.query_n_points if self.query_n_points is not None else len(Xpool)
+        return np.ones(n_samples), np.random.randint(0, len(Xpool), size=n_samples) 
 
 class VariationRatios(AcquisitionFunction):
 
@@ -69,44 +70,32 @@ class Entropy(AcquisitionFunction):
     def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         pool_probs = kwargs['model'].predict_proba(Xpool)
         
-        # Compute Variation Ratios and sort
+        # Compute Entropy and sort
         acq_scores      = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
 
-class Entropy_temp(AcquisitionFunction):
+# class BALD_old(AcquisitionFunction):
 
-    def __init__(self, query_n_points):
-        super().__init__(name='Entropy', query_n_points=query_n_points)
+#     def __init__(self, query_n_points, n_posterior_samples: int = 1000, seed: int = 0):
+#         # Set class-wide sampling parameters
+#         self.n_posterior_samples    = n_posterior_samples
+#         self.seed                   = seed
 
-    def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
-        pool_probs, _ = kwargs['model'].predict_proba(Xpool)
+#         super().__init__(name='BALD', query_n_points=query_n_points)
+
+#     def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+#         pool_probs          = kwargs['model'].predict_proba(Xpool)
         
-        # Compute Variation Ratios and sort
-        acq_scores      = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
-        return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
-
-class BALD_old(AcquisitionFunction):
-
-    def __init__(self, query_n_points, n_posterior_samples: int = 1000, seed: int = 0):
-        # Set class-wide sampling parameters
-        self.n_posterior_samples    = n_posterior_samples
-        self.seed                   = seed
-
-        super().__init__(name='BALD', query_n_points=query_n_points)
-
-    def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
-        pool_probs          = kwargs['model'].predict_proba(Xpool)
+#         ### BALD score estimation as of Gal, et al.: https://arxiv.org/pdf/1703.02910.pdf 
+#         # Compute entropy term
+#         entropy_term        = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
+#         # Sample the posterior and compute disagreement term
+#         posterior_samples   = kwargs['model'].sample(Xpool, n_samples=self.n_posterior_samples, seed=self.seed)
+#         disagreement_term   = (posterior_samples * np.log(posterior_samples + 1e-9)).sum(axis=0).mean(axis=0)
         
-        ### BALD score estimation as of Gal, et al.: https://arxiv.org/pdf/1703.02910.pdf 
-        # Compute entropy term
-        entropy_term        = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
-        # Sample the posterior and compute disagreement term
-        posterior_samples   = kwargs['model'].sample(Xpool, n_samples=self.n_posterior_samples, seed=self.seed)
-        disagreement_term   = (posterior_samples * np.log(posterior_samples + 1e-9)).sum(axis=0).mean(axis=0)
-        
-        # Compute final acq-scores
-        acq_scores          = entropy_term + disagreement_term
-        return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
+#         # Compute final acq-scores
+#         acq_scores          = entropy_term + disagreement_term
+#         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
 
 class BALD(AcquisitionFunction):
 
@@ -118,18 +107,21 @@ class BALD(AcquisitionFunction):
         super().__init__(name='BALD', query_n_points=query_n_points)
 
     def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
-        pool_probs, posterior_samples = kwargs['model'].sample(Xpool, n_samples=self.n_posterior_samples, seed=self.seed)
-        
+        posterior_samples   = kwargs['model'].sample(Xpool, n_samples=self.n_posterior_samples, seed=self.seed)
+        pool_probs          = torch.softmax(posterior_samples, dim=0).mean(axis=1).T  
+
         ### BALD score estimation as of Gal, et al.: https://arxiv.org/pdf/1703.02910.pdf 
         # Compute entropy term
-        entropy_term        = - sum([pool_probs[:, cat] * np.log(pool_probs[:, cat]) for cat in range(pool_probs.shape[1])])
+        log_softmax         = (posterior_samples - torch.logsumexp(posterior_samples, dim=0, keepdim=True)).mean(axis=1).T
+        entropy_term        = - sum([pool_probs[:, cat] * log_softmax[:, cat] for cat in range(pool_probs.shape[1])])
+
         # Sample the posterior and compute disagreement term
-        disagreement_term   = (posterior_samples * np.log(posterior_samples + 1e-9)).sum(axis=0).mean(axis=0)
-        
+        disagreement_term   = (torch.softmax(posterior_samples, dim=0) * (posterior_samples - torch.logsumexp(posterior_samples, dim=0, keepdim=True)))
+        disagreement_term   = disagreement_term.sum(axis=0).mean(axis=0)
+
         # Compute final acq-scores
         acq_scores          = entropy_term + disagreement_term
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
-
 
 class EPIG(AcquisitionFunction):
 
@@ -197,7 +189,7 @@ class EPIG(AcquisitionFunction):
 
 class GeneralEPIG(AcquisitionFunction):
 
-    def __init__(self, query_n_points, target_input_distribution: TargetInputDistribution, n_posterior_samples: int = 1000, n_target_input_samples: int = 100, seed: int = 0, version: str = 'mine'):
+    def __init__(self, query_n_points, target_input_distribution: TargetInputDistribution, n_posterior_samples: int = 1000, n_target_input_samples: int = 100, seed: int = 0):
         # Make target-input distribution accesible
         self.target_input_distribution = target_input_distribution
 
@@ -205,7 +197,6 @@ class GeneralEPIG(AcquisitionFunction):
         self.n_posterior_samples    = n_posterior_samples
         self.n_target_input_samples = n_target_input_samples
         self.seed                   = seed
-        self.version                = version 
 
         super().__init__(name='GeneralEPIG', query_n_points=query_n_points)
 
@@ -214,23 +205,22 @@ class GeneralEPIG(AcquisitionFunction):
         # Sample x* values from the target input distribution
         Xstar                   = self.target_input_distribution.sample(self.n_target_input_samples, seed=self.seed)
         
-        if self.version == 'mine':
-            # Extract predictive probabilities for target samples and all points in the pool by exploiting Monte Carlo sampling of the posterior
-            _, probs_pool  = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
-            _, probs_targ  = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
+        # Extract predictive probabilities for target samples and all points in the pool by exploiting Monte Carlo sampling of the posterior
+        _, probs_pool  = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
+        _, probs_targ  = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
 
-            # Define constants
-            num_classes = probs_pool.shape[0]
-            K, M        = self.n_posterior_samples, self.n_target_input_samples
+        # Define constants
+        num_classes = probs_pool.shape[0]
+        K, M        = self.n_posterior_samples, self.n_target_input_samples
 
-            # Compute the joint term of the expression (summation on the numerator part of the fraction in the log)
-            joint_term          = np.array([[(probs_pool[c, :, :] * probs_targ[c_star, :, j][:, None]).sum(axis=0) for j in range(M)] for c in range(num_classes) for c_star in range(num_classes)])
-            # Compute the independent term of the expression (summation on the denominator part of the fraction in the log)
-            independent_term    = np.array([[probs_pool[c, :, :].sum(axis=0) * probs_targ[c_star, :, j].sum(axis=0) for j in range(M)] for c in range(num_classes) for c_star in range(num_classes)])
-            # Compute log-term
-            log_term            = np.log(K * joint_term) - np.log(independent_term)
-            # Wrap it up and compute the final acquisition scores
-            acq_scores          = 1/M * log_term.sum(axis=(1, 0))
+        # Compute the joint term of the expression (summation on the numerator part of the fraction in the log)
+        joint_term          = np.array([[(probs_pool[c, :, :] * probs_targ[c_star, :, j][:, None]).sum(axis=0) for j in range(M)] for c in range(num_classes) for c_star in range(num_classes)])
+        # Compute the independent term of the expression (summation on the denominator part of the fraction in the log)
+        independent_term    = np.array([[probs_pool[c, :, :].sum(axis=0) * probs_targ[c_star, :, j].sum(axis=0) for j in range(M)] for c in range(num_classes) for c_star in range(num_classes)])
+        # Compute log-term
+        log_term            = np.log(K * joint_term) - np.log(independent_term)
+        # Wrap it up and compute the final acquisition scores
+        acq_scores          = 1/M * log_term.sum(axis=(1, 0))
 
-            # Sort values
-            return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
+        # Sort values
+        return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
