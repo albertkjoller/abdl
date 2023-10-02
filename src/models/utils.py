@@ -14,6 +14,8 @@ def GP_sample(self, X, n_samples, seed=0, verbose=False):
     
     # Define sigmoid function
     sigmoid = lambda z: 1 / (1 + np.exp(-z))
+    rev_sigmoid = lambda x: np.log(x / (1 - x))
+
     # Set dataset shape    
     num_points      = X.__len__()
 
@@ -36,7 +38,7 @@ def GP_sample(self, X, n_samples, seed=0, verbose=False):
         Y[i, :]         = sigmoid(z)
 
     if num_classes == 2:
-        return np.vstack([1-Y, Y])    
+        return np.vstack([1-Y, Y]) 
         
     if verbose:
         print(f"Sample mean:\n {Y.mean(axis=1).T}\n\nModel mean:\n {self.predict_proba(X)}")
