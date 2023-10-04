@@ -1,5 +1,6 @@
 from typing import List, Tuple
 
+import torch
 import numpy as np
 import pandas as pd
 
@@ -85,14 +86,17 @@ def get_density_grid(model, x1_low, x1_high, x2_low, x2_high, P=200):
     x2              = np.linspace(x2_low, x2_high, P)
     X1, X2          = np.meshgrid(x1, x2)
     XX              = np.column_stack((X1.ravel(), X2.ravel()))
+    XX = torch.FloatTensor(XX).to(model.args.device) if model.__class__.__name__ == 'SimpleLLLA' else XX
 
     # Get uncertainty output from model
-    density_grid    = model.predict_proba(XX)# [:, 0].reshape(P, P) # binary case
+    density_grid = model.predict_proba(XX)
     return x1, x2, density_grid, XX
+
+convert_to_numpy    = lambda x: x.cpu().numpy() if isinstance(x, torch.Tensor) else x    
 
 def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5), auto_zoom=True, zoom=None, ax=None, fig=None, num_classes=2):
     if auto_zoom:
-        zoom = ([-1.5, 1.5], [-1, 4]) if num_classes == 4 else ([-2, 3], [-2, 2])
+        zoom = ([-1, 1], [-0.5, 3.5]) if num_classes == 4 else ([-5, 5], [-5, 5])
     else:
         assert zoom is not None
 
@@ -104,10 +108,10 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5),
         im = ax.pcolormesh(x1, x2, density_grid[:, 0].reshape(P, P), cmap=plt.cm.RdBu_r, norm=colors.Normalize(vmin=0., vmax=1.), shading='auto')
 
         # Plot training points
-        ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
+        ax.scatter(convert_to_numpy(Xtrain[:, 0]), convert_to_numpy(Xtrain[:, 1]), color='k', s=50, label='Training data')
         # Plot all data, colored by respective category
         for i in range(num_classes):
-            ax.scatter(Xtrain[ytrain == i, 0], Xtrain[ytrain == i, 1], color=f'C{i if i!=3 else i+1}', label=f'Class {i}', s=20)
+            ax.scatter(convert_to_numpy(Xtrain[ytrain == i, 0]), convert_to_numpy(Xtrain[ytrain == i, 1]), color=f'C{i if i!=3 else i+1}', label=f'Class {i}', s=20)
         
         # Add label
         ax.set_xlabel('$x_1$');      
@@ -126,10 +130,10 @@ def show_density_grid(model, Xtrain, Xtest, ytrain, ytest, P=200, figsize=(6,5),
             im_ = subplot_ax.pcolormesh(x1, x2, density_grid[:, i].reshape(P, P), cmap=plt.cm.RdBu_r, norm=colors.Normalize(vmin=0.0, vmax=1.0), shading='auto')
 
             # Plot training points
-            subplot_ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
+            subplot_ax.scatter(convert_to_numpy(Xtrain[:, 0]), convert_to_numpy(Xtrain[:, 1]), color='k', s=50, label='Training data')
             # Plot all data, colored by respective category
             for class_idx in range(num_classes):
-                subplot_ax.scatter(Xtrain[ytrain == class_idx, 0], Xtrain[ytrain == class_idx, 1], color=f'C{class_idx if class_idx!=3 else class_idx+1}', label=f'Class {class_idx}', s=20)
+                subplot_ax.scatter(convert_to_numpy(Xtrain[ytrain == class_idx, 0]), convert_to_numpy(Xtrain[ytrain == class_idx, 1]), color=f'C{class_idx if class_idx!=3 else class_idx+1}', label=f'Class {class_idx}', s=20)
 
             subplot_ax.set_title(f'$P(y={i} | $' + '$\mathcal{D}_{train})$')
             if i // 2 == 0:
@@ -145,7 +149,7 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, density_grid_ou
     x1, x2, _, XX = density_grid_outputs
 
     if auto_zoom:
-        zoom = ([-1.5, 1.5], [-1, 4]) if num_classes == 4 else ([-2, 3], [-2, 2])
+        zoom = ([-1, 1], [-0.5, 3.5]) if num_classes == 4 else ([-5, 5], [-5, 5])
     else:
         assert zoom is not None
 
@@ -159,12 +163,12 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, density_grid_ou
     im = ax.pcolormesh(x1, x2, acq_score_grid, cmap=plt.cm.Greens, norm=colors.Normalize(), shading='auto')
 
     # Plot unlabelled pool
-    ax.scatter(Xpool[:, 0], Xpool[:, 1], color=f'gray', label=f'Unlabelled pool', s=20, alpha=0.5)
+    ax.scatter(convert_to_numpy(Xpool[:, 0]), convert_to_numpy(Xpool[:, 1]), color=f'gray', label=f'Unlabelled pool', s=20, alpha=0.5)
     # Plot training points
-    ax.scatter(Xtrain[:, 0], Xtrain[:, 1], color='k', s=50, label='Training data')
+    ax.scatter(convert_to_numpy(Xtrain[:, 0]), convert_to_numpy(Xtrain[:, 1]), color='k', s=50, label='Training data')
     # Color training points by their respective category
     for i in range(num_classes):
-        ax.scatter(Xtrain[ytrain == i, 0], Xtrain[ytrain == i, 1], color=f'C{i if i!=3 else i+1}', label=f'Class {i}', s=20)
+        ax.scatter(convert_to_numpy(Xtrain[ytrain == i, 0]), convert_to_numpy(Xtrain[ytrain == i, 1]), color=f'C{i if i!=3 else i+1}', label=f'Class {i}', s=20)
 
     # Add label
     ax.set_xlabel('$x_1$');      
@@ -174,6 +178,29 @@ def show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, density_grid_ou
     # Add colorbar
     add_colorbar(im, fig, ax)
     return ax
+
+def plot_example(model, Xtrain, Xtest, Xpool, ytrain, ytest, acq_fun, next_query, num_classes, P=150, zoom=None, auto_zoom=True):
+    
+    ### PLOT DECISION BOUNDARY AND ACQUISITION FUNCTION ###
+    fig, axs = plt.subplots(1, 3 - int(num_classes == 4), figsize=(18 - int(num_classes == 4) * 6, 5), sharey=True, sharex=True)
+
+    # Plot model uncertainty across grid
+    axs[0], density_grid_output = show_density_grid(model, Xtrain, Xtest, ytrain, ytest, num_classes=num_classes, P=P, auto_zoom=auto_zoom, zoom=zoom, ax=axs[0], fig=fig)
+    if num_classes == 2:
+        axs[0].legend()
+
+    if num_classes == 2:
+        decisions_bls = np.argmax(density_grid_output[2], axis=1).reshape((len(density_grid_output[0]), len(density_grid_output[1])))
+        axs[1].pcolormesh(density_grid_output[0], density_grid_output[1], 1-decisions_bls, alpha=0.8, cmap=plt.cm.RdBu_r, shading='auto')        
+        axs[1].set_title('Decision boundary')
+        axs[1].set_xlabel('$x_1$')
+        axs[1].grid(None)
+
+    # Plot acquisition function across a grid
+    axs[2 - int(num_classes == 4)] = show_acquisition_grid(model, acq_fun, Xtrain, ytrain, Xpool, density_grid_output, num_classes=num_classes, P=P, auto_zoom=auto_zoom, zoom=zoom, ax=axs[2 - int(num_classes == 4)], fig=fig)
+    axs[2 - int(num_classes == 4)].scatter(convert_to_numpy(next_query[0]), convert_to_numpy(next_query[1]), color='orange', marker=(5, 1), s=100, label='New query')
+    axs[2 - int(num_classes == 4)].legend()
+    return axs
 
 def plot_performance_curves(results, experiments: Tuple[str, str], acq_functions: List[str]):
 

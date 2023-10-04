@@ -11,6 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 
+import torch
+
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.gaussian_process import GaussianProcessClassifier
 
@@ -20,6 +22,8 @@ from src.methods.acquisition_functions import AcquisitionFunction, Random, Varia
 
 from src.models.utils import GP_sample
 from src.methods.toy_example import run_active_learning_loop_toy
+
+from src.models.LLLA import SimpleLLLA
 
 def parse_arguments():
     # Create parser
@@ -47,8 +51,16 @@ def parse_arguments():
                         help='Number of samples in the pool. Relevant for 2D tasks.')
     
     ### MODEL PARAMETERS ###
-    parser.add_argument('--model', type=str, default='GPClassifier',
+    parser.add_argument('--model', type=str, default='SimpleLLLA',
                         help='Name of the model to be trained.')
+    parser.add_argument('--lr', type=float, default=1e-4,
+                        help='The learning rate.')
+    parser.add_argument('--epochs', type=int, default=1000,
+                        help='Number of epochs.')
+    parser.add_argument('--val_every_step', type=int, default=1,
+                        help='How frequently to run validation if deep learning setting.')
+    parser.add_argument('--model_verbose', type=int, default=0,
+                        help='Whether to print model training progress.')
 
     ### ACTIVE LEARNING PARAMETERS ###
     parser.add_argument('--acq_functions', nargs='+', action='extend', type=str, required=True,
@@ -86,24 +98,33 @@ def get_dataset(args):
     if args.dataset == '2D_moons':
         num_classes = 2
         Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_moons(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, noise=0.075)
-        return Xtrain, ytrain, Xtest, ytest, Xpool, ypool, num_classes
     elif args.dataset == '2D_multiclass':
         num_classes = 4
         Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_multiclass(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, num_classes=num_classes, noise=0.1)
-        return Xtrain, ytrain, Xtest, ytest, Xpool, ypool, num_classes
     else:
         raise NotImplementedError("The chosen dataset does not exist...")
+    
+    if args.model == 'SimpleLLLA':
+        return (
+            torch.FloatTensor(Xtrain).to(args.device), torch.LongTensor(ytrain).to(args.device), 
+            torch.FloatTensor(Xpool).to(args.device), torch.LongTensor(ypool).to(args.device), 
+            torch.FloatTensor(Xtest).to(args.device), torch.LongTensor(ytest).to(args.device), 
+            num_classes
+        )
+    else:
+        return Xtrain, ytrain, Xtest, ytest, Xpool, ypool, num_classes
 
-def get_model(args):
+def get_model(args, num_classes, seed):
     if args.model == 'GPClassifier':
         # Define model
         model           = GaussianProcessClassifier(1.0 * RBF(1.0))
         model.sample    = MethodType( GP_sample, model )
-        return model
-    # elif args.model == '':
-        # return ...
+    elif args.model == 'SimpleLLLA':
+        model   = SimpleLLLA(args=args, num_classes=num_classes, seed=seed)
+        model.to(args.device)
     else:
         raise NotImplementedError("The chosen model type does not exist...")
+    return model
 
 def get_acquisition_fun(acq_fun: str, seed: int, args) -> Tuple[AcquisitionFunction, Optional[TargetInputDistribution]]:
     if acq_fun == 'Random':
@@ -165,23 +186,24 @@ if __name__ == '__main__':
     # Parse arguments and run setup
     args        = parse_arguments()
     save_path   = setup_save_information(args)
+    args.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # Run experiment as defined in inputs
     for seed in range(args.seed_range[0], args.seed_range[1] + 1):
         for acq_function in args.acq_functions:
-            print(f"{'-'*10} RUNNING {acq_function} ACQUISITION FUNCTION{'-'*10}")
+            print(f"{'-'*10} RUNNING {acq_function} ACQUISITION FUNCTION (SEED = {seed}) {'-'*10}")
 
             # Set seed
             np.random.seed(seed)
             # Define acquisition function
             acq_fun, target_input_dist = get_acquisition_fun(acq_fun=acq_function, seed=seed, args=args)
 
-            # Define model
-            model = get_model(args)
-
             # Load data
             Xtrain, ytrain, Xtest, ytest, Xpool, ypool, num_classes = get_dataset(args)
-            assert np.unique(ytrain).__len__() == num_classes, "The data "
+            
+            # Define model
+            args.save_dir_model = save_path / f'{acq_fun.name}/seed{seed}'
+            model               = get_model(args, num_classes, seed)
 
             # Run active learning loop
             _, _, _, _ = get_active_learning_loop(args)(
@@ -195,9 +217,15 @@ if __name__ == '__main__':
                 save_fig=args.save_fig, 
                 animate=args.animate, fps=1,
                 num_classes=num_classes,
+                P=100,
                 seed=seed,
                 save_dir=save_path,
             )
+
+# python run.py --dataset 2D_moons --size_initial 2 --size_test 100 --size_pool 500 --model 'SimpleLLLA' --acq_functions 'Random' 'VariationRatios' 'MinimumMargin' 'Entropy' 'BALD' --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --save_dir C:/Users/alber/Desktop/DTU/3_HCAI/ActiveBayesianDeepLearning/abdl/reports --seed_range 0 10 --experiment_name new_2D_moons    
+# python run.py --experiment_name 2D_multi --dataset 2D_multiclass --size_initial 2 --size_test 200 --size_pool 500 --model SimpleLLLA --lr 1e-4 --epochs 50 --val_every_step 10 --model_verbose 0 --acq_functions Random VariationRatios MinimumMargin Entropy BALD --num_queries 50 --samples_per_query 1 --n_posterior_samples 2500 --save_dir C:\Users\alber\Desktop\DTU\3_HCAI\ActiveBayesianDeepLearning\abdl\reports --seed_range 0 100 --save_fig
+                
+                
 
 ### BINARY ###
 # python run.py --dataset 2D_moons --size_initial 2 --size_test 100 --size_pool 500 --model 'GPClassifier' --acq_functions 'Random' 'VariationRatios' 'MinimumMargin' 'Entropy' 'BALD' 'EPIG' --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --target_dist '2DGaussian_v1' --save_dir C:/Users/alber/Desktop/DTU/3_HCAI/ActiveBayesianDeepLearning/abdl/reports --seed_range 0 10 --experiment_name 2D_moons    
