@@ -28,7 +28,7 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 Project Organization
 ------------
 
-    ├── LICENSE
+    ├── LICENSE 
     ├── Makefile           <- Makefile with commands like `make data` or `make train`
     ├── README.md          <- The top-level README for developers using this project.
     ├── data
