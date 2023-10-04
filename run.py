@@ -23,7 +23,7 @@ from src.methods.acquisition_functions import AcquisitionFunction, Random, Varia
 from src.models.utils import GP_sample
 from src.methods.toy_example import run_active_learning_loop_toy
 
-from src.models.LLLA import SimpleLLLA
+from src.models.llla import SimpleLLLA
 
 def parse_arguments():
     # Create parser
