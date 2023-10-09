@@ -16,3 +16,5 @@ matplotlib
 seaborn
 imageio
 pandas
+backpack-for-pytorch
+tqdm

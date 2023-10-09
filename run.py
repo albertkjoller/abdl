@@ -18,7 +18,7 @@ from sklearn.gaussian_process import GaussianProcessClassifier
 
 from src.data.toy_example import generate_moons, generate_multiclass
 from src.methods.target_input_distribution import TargetInputDistribution, MultivariateGaussian
-from src.methods.acquisition_functions import AcquisitionFunction, Random, VariationRatios, MinimumMargin, Entropy, BALD, EPIG
+from src.methods.acquisition_functions import AcquisitionFunction, Random, VariationRatios, MinimumMargin, Entropy, BALD, EPIG, GeneralEPIG
 
 from src.models.utils import GP_sample
 from src.methods.toy_example import run_active_learning_loop_toy
@@ -62,7 +62,7 @@ def parse_arguments():
     parser.add_argument('--model_verbose', type=int, default=0,
                         help='Whether to print model training progress.')
 
-    ### ACTIVE LEARNING PARAMETERS ###
+    ### ACTIVE LEARNING PARAMETERS ###  
     parser.add_argument('--acq_functions', nargs='+', action='extend', type=str, required=True,
                         help='List acquisition functions to explore, e.g. Random, BALD or EPIG.',)
     parser.add_argument('--num_queries', type=int, default=50,
@@ -73,6 +73,10 @@ def parse_arguments():
                         help='Number of MC samples to approximate posterior for BALD and EPIG estimates.')
     parser.add_argument('--target_dist', type=str,
                         help='The target input distribution. Required when running with EPIG acquisition.')
+    parser.add_argument('--mu', nargs='+', action='extend', type=float,
+                        help='Mean of the target distribution.')
+    parser.add_argument('--sigma', type=float,
+                        help='Spread of the target distribution.')
     parser.add_argument('--n_target_dist_samples', type=int, default=100,
                         help='Number of MC samples to draw from the target input distribution for EPIG estimates.')
     
@@ -100,7 +104,7 @@ def get_dataset(args):
         Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_moons(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, noise=0.075)
     elif args.dataset == '2D_multiclass':
         num_classes = 4
-        Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_multiclass(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, num_classes=num_classes, noise=0.1)
+        Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_multiclass(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, num_classes=num_classes, noise=0.3)
     else:
         raise NotImplementedError("The chosen dataset does not exist...")
     
@@ -119,6 +123,8 @@ def get_model(args, num_classes, seed):
         # Define model
         model           = GaussianProcessClassifier(1.0 * RBF(1.0))
         model.sample    = MethodType( GP_sample, model )
+        model.fit_      = MethodType(  lambda self, Xtrain, ytrain, Xval, yval: self.fit(Xtrain, ytrain) , model )
+        
     elif args.model == 'SimpleLLLA':
         model   = SimpleLLLA(args=args, num_classes=num_classes, seed=seed)
         model.to(args.device)
@@ -146,14 +152,24 @@ def get_acquisition_fun(acq_fun: str, seed: int, args) -> Tuple[AcquisitionFunct
             n_target_input_samples=args.n_target_dist_samples, 
             seed=seed,
         ), target_input_dist
+    elif acq_fun == 'GeneralEPIG':
+        target_input_dist = get_target_input_distribution(args)
+        return GeneralEPIG(
+            query_n_points=args.samples_per_query, 
+            target_input_distribution=target_input_dist,
+            n_posterior_samples=args.n_posterior_samples, 
+            n_target_input_samples=args.n_target_dist_samples, 
+            seed=seed,
+        ), target_input_dist
+
     else:
         raise NotImplementedError("The chosen acquition function does not exist...")
 
 def get_target_input_distribution(args) -> TargetInputDistribution:
-    if args.target_dist == '2DGaussian_v1':
-        return MultivariateGaussian(mu=[0,0], Sigma=np.array([[1, 0], [0, 1]]) / 4)
-    elif args.target_dist == '2DGaussian_v2':
-        return MultivariateGaussian(mu=[1.8,0], Sigma=np.array([[1, 0], [0, 1]]) / 4)
+    if args.target_dist == '2DGaussian':
+        return MultivariateGaussian(mu=args.mu, Sigma=np.array([[1, 0], [0, 1]]) / args.sigma**2)
+    # elif args.target_dist == '2DGaussian_v2':
+    #     return MultivariateGaussian(mu=[0.75, 0.0], Sigma=np.array([[1, 0], [0, 1]]) / 8)
     else:
         raise NotImplementedError("The chosen target input distribution does not exist...")
     
@@ -187,6 +203,7 @@ if __name__ == '__main__':
     args        = parse_arguments()
     save_path   = setup_save_information(args)
     args.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    args.device = torch.device('cpu') #  if torch.cuda.is_available() else torch.device('cpu')
 
     # Run experiment as defined in inputs
     for seed in range(args.seed_range[0], args.seed_range[1] + 1):
@@ -217,7 +234,7 @@ if __name__ == '__main__':
                 save_fig=args.save_fig, 
                 animate=args.animate, fps=1,
                 num_classes=num_classes,
-                P=100,
+                P=55,
                 seed=seed,
                 save_dir=save_path,
             )

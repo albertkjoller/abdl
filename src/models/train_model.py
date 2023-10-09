@@ -9,11 +9,8 @@ def train_model(model, optimizer, Xtrain, ytrain, Xval, yval, epochs, val_step, 
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    # accs    = {'train': {}, 'validation': {}}
-    # losses  = {'train': {}, 'validation': {}}
-    current_best_loss = np.inf
-
-    pbar = tqdm(range(epochs)) if verbose else range(epochs)
+    current_best_loss   = np.inf
+    pbar                = tqdm(range(epochs)) if verbose else range(epochs)
     for epoch in pbar:
         model.train()
 
@@ -34,10 +31,6 @@ def train_model(model, optimizer, Xtrain, ytrain, Xval, yval, epochs, val_step, 
         _, pred_class   = torch.topk(outputs, k=1)
         train_acc       = torch.mean((pred_class.flatten() == ytrain).float()).cpu()
         train_loss      = loss.item()
-
-        # Store information
-        # accs['train'][epoch]    = train_acc 
-        # losses['train'][epoch]  = train_loss
         
         if epoch % val_step == 0:
             model.eval()
@@ -53,9 +46,6 @@ def train_model(model, optimizer, Xtrain, ytrain, Xval, yval, epochs, val_step, 
                 _, pred_class   = torch.topk(outputs, k=1)
                 val_acc         = torch.mean((pred_class.flatten() == yval).float()).cpu()
                 val_loss        = loss.item()
-
-                # accs['validation'][epoch]   = val_acc 
-                # losses['validation'][epoch] = val_loss
 
             if val_loss < current_best_loss:
                 current_best_loss   = val_loss

@@ -78,7 +78,7 @@ def run_active_learning_loop_toy(
             
             # Plot target input distribution on top
             if target_input_distribution is not None:
-                target_input_distribution.plot_2D(ax=axs[2], zoom=zoom)
+                target_input_distribution.plot_2D(ax=axs[2 - int(num_classes == 4)], zoom=zoom)
                 
             img_list.append(f'{save_dir}/{acq_fun.name}/seed{seed}/images/iteration{i}.png')
             plt.savefig(f'{save_dir}/{acq_fun.name}/seed{seed}/images/iteration{i}.png')

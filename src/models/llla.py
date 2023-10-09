@@ -98,6 +98,7 @@ class SimpleLLLA(nn.Module):
         
         # feed input through first part of network
         with torch.no_grad():
+            X = torch.FloatTensor(X).to(self.args.device)
             z = self.feature_extr(X)
             # MAP prediction
             Wmap = z @ self.W_last_layer.T
