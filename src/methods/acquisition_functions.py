@@ -215,67 +215,64 @@ class EPIG(AcquisitionFunction):
     # return scores  # [N_p, N_t]
 
 
-class GeneralEPIG(AcquisitionFunction):
+# class GeneralEPIG(AcquisitionFunction):
 
-    def __init__(self, query_n_points, target_input_distribution: TargetInputDistribution, n_posterior_samples: int = 1000, n_target_input_samples: int = 100, seed: int = 0):
-        # Make target-input distribution accesible
-        self.target_input_distribution = target_input_distribution
+#     def __init__(self, query_n_points, target_input_distribution: TargetInputDistribution, n_posterior_samples: int = 1000, n_target_input_samples: int = 100, seed: int = 0):
+#         # Make target-input distribution accesible
+#         self.target_input_distribution = target_input_distribution
 
-        # Set class-wide sampling parameters
-        self.n_posterior_samples    = n_posterior_samples
-        self.n_target_input_samples = n_target_input_samples
-        self.seed                   = seed
+#         # Set class-wide sampling parameters
+#         self.n_posterior_samples    = n_posterior_samples
+#         self.n_target_input_samples = n_target_input_samples
+#         self.seed                   = seed
 
-        super().__init__(name='EPIG', query_n_points=query_n_points)
+#         super().__init__(name='EPIG', query_n_points=query_n_points)
 
-    def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
-        K, M        = self.n_posterior_samples, self.n_target_input_samples
+#     def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+#         K, M        = self.n_posterior_samples, self.n_target_input_samples
 
-        # Sample x* values from the target input distribution
-        Xstar                       = self.target_input_distribution.sample(M, seed=self.seed)
-        self.Xstar                  = Xstar
+#         # Sample x* values from the target input distribution
+#         Xstar                       = self.target_input_distribution.sample(M, seed=self.seed)
+#         self.Xstar                  = Xstar
 
-        # Extract predictive probabilities for target samples and all points in the pool by exploiting Monte Carlo sampling of the posterior 
-        posterior_pool_samples      = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
-        posterior_target_samples    = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
+#         # Extract predictive probabilities for target samples and all points in the pool by exploiting Monte Carlo sampling of the posterior 
+#         posterior_pool_samples      = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
+#         posterior_target_samples    = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
         
-        if kwargs['model'].__class__.__name__ == 'GaussianProcessClassifier':
-            assert posterior_pool_samples.min() != 0, "Model returns 0 probability for some samples!"
-            assert posterior_target_samples.min() != 0, "Model returns 0 probability for some samples!"
+#         if kwargs['model'].__class__.__name__ == 'GaussianProcessClassifier':
+#             assert posterior_pool_samples.min() != 0, "Model returns 0 probability for some samples!"
+#             assert posterior_target_samples.min() != 0, "Model returns 0 probability for some samples!"
 
-            # model returns probabilities - so return log-probs with log
-            logprobs_pool               = torch.log(torch.FloatTensor(posterior_pool_samples))[:, None, :, :, None]
-            logprobs_target             = torch.log(torch.FloatTensor(posterior_target_samples))[None, :, :, None, :]
-        else:
-            # model returns logits - so return log-probs with log_softmax
-            logprobs_pool               = torch.log_softmax(posterior_pool_samples, dim=0)[:, None, :, :, None]     
-            logprobs_target             = torch.log_softmax(posterior_target_samples, dim=0)[None, :, :, None, :]
+#             # model returns probabilities - so return log-probs with log
+#             logprobs_pool               = torch.log(torch.FloatTensor(posterior_pool_samples))[:, None, :, :, None]
+#             logprobs_target             = torch.log(torch.FloatTensor(posterior_target_samples))[None, :, :, None, :]
+#         else:
+#             # model returns logits - so return log-probs with log_softmax
+#             logprobs_pool               = torch.log_softmax(posterior_pool_samples, dim=0)[:, None, :, :, None]     
+#             logprobs_target             = torch.log_softmax(posterior_target_samples, dim=0)[None, :, :, None, :]
 
+#         # Define distribution and sample targets
+#         dist = torch.distributions.Categorical
+#         ystar_samples               = dist(probs=torch.exp(logprobs_target)[0, :, :, 0, :].permute(2, 1, 0)).sample()
 
-        # Compute acq_scores per point in the pool as the other approach scales very bad...
-        acq_scores = torch.zeros(len(Xpool))
-        for idx in tqdm(range(len(Xpool)), desc='Estimating EPIG...'):
-            logprobs_pool_              = logprobs_pool[:, :, :, idx, :].unsqueeze(3) 
-            logprobs_joint              = logprobs_pool_ + logprobs_target 
-            logprobs_joint              = torch.logsumexp(logprobs_joint, dim=2) - math.log(K) # [Cl, Cl, Np, Nt]
-            probs_joint                 = torch.exp(logprobs_joint)
+#         # Compute acq_scores per point in the pool as the other approach scales very bad...
+#         acq_scores = torch.zeros(len(Xpool))
+#         for idx in tqdm(range(len(Xpool)), desc='Estimating EPIG...'):
+
+#             logprobs_pool_              = logprobs_pool[:, :, :, idx, :].unsqueeze(3) 
+#             y_samples                   = torch.vstack([dist(probs=torch.exp(logprobs_pool_)[:, 0, :, 0, 0].T).sample() for _ in range(ystar_samples.shape[0])])
+
+#             logprobs_pool_              = torch.hstack([torch.stack([logprobs_pool_[val, :, j, :, :] for j, val in enumerate(sample_)]) for i, sample_ in enumerate(y_samples)]).squeeze([2, 3])
+
+#             logprobs_target_            = torch.hstack([torch.stack([logprobs_target[:, val, j, :, i] for j, val in enumerate(sample_)]) for i, sample_ in enumerate(ystar_samples)]).squeeze(2)
+
+#             logprobs_joint              = logprobs_pool_ + logprobs_target_
+            
+#             log_term        = math.log(K) + torch.logsumexp(logprobs_joint, dim=0) - torch.logsumexp(logprobs_pool_, dim=0) - torch.logsumexp(logprobs_target_, dim=0)
+#             acq_scores[idx] = log_term.mean(dim=-1)
+
+#         assert torch.all((acq_scores + 1e-6 >= 0) & (acq_scores <= math.inf)).item(), "Acquisition scores are not valid!"
         
-            logprobs_independent        = (torch.logsumexp(logprobs_pool_, dim=2) - math.log(K)) + (torch.logsumexp(logprobs_target, dim=2) - math.log(K))
-            log_term                    = logprobs_joint - logprobs_independent
-
-            acq_scores[idx]             = (probs_joint * log_term).sum(dim=[0, 1]).mean(dim=-1)
-
-        # logprobs_joint              = logprobs_pool + logprobs_target
-        # logprobs_joint              = torch.logsumexp(logprobs_joint, dim=2) - math.log(K) # [Cl, Cl, Np, Nt]
-        # probs_joint                 = torch.exp(logprobs_joint)
-
-        # logprobs_independent        = (torch.logsumexp(logprobs_pool, dim=2) - math.log(K)) + (torch.logsumexp(logprobs_target, dim=2) - math.log(K))
-        # log_term                    = logprobs_joint - logprobs_independent
-
-        # acq_scores                  = (probs_joint * log_term).sum(dim=[0, 1])
-        # acq_scores                  = acq_scores.mean(dim=-1)
-        assert torch.all((acq_scores + 1e-6 >= 0) & (acq_scores <= math.inf)).item(), "Acquisition scores are not valid!"
-        
-        # Sort values
-        return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
+#         # Sort values
+#         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
     
