@@ -27,7 +27,7 @@ def generate_moons(N_initial_per_class, N_test, N_pool, noise=0.2):
 
     return Xtrain, ytrain, Xtest, ytest, Xpool, ypool
 
-def generate_multiclass(N_initial_per_class, N_test, N_pool, num_classes=4, noise=0.075):
+def generate_multiclass(N_initial_per_class, N_test, N_pool, num_classes=4, noise=0.35):
 
     # Generate initial points
     Xtrain, ytrain = make_blobs(n_samples=N_initial_per_class * num_classes, centers=num_classes, cluster_std=noise, center_box=(-3, 3), random_state=0) 

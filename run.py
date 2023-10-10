@@ -18,7 +18,7 @@ from sklearn.gaussian_process import GaussianProcessClassifier
 
 from src.data.toy_example import generate_moons, generate_multiclass
 from src.methods.target_input_distribution import TargetInputDistribution, MultivariateGaussian
-from src.methods.acquisition_functions import AcquisitionFunction, Random, VariationRatios, MinimumMargin, Entropy, BALD, EPIG, GeneralEPIG
+from src.methods.acquisition_functions import AcquisitionFunction, Random, VariationRatios, MinimumMargin, Entropy, BALD, EPIG
 
 from src.models.utils import GP_sample
 from src.methods.toy_example import run_active_learning_loop_toy
@@ -101,10 +101,10 @@ def parse_arguments():
 def get_dataset(args):
     if args.dataset == '2D_moons':
         num_classes = 2
-        Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_moons(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, noise=0.075)
+        Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_moons(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, noise=0.2)
     elif args.dataset == '2D_multiclass':
         num_classes = 4
-        Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_multiclass(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, num_classes=num_classes, noise=0.3)
+        Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_multiclass(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, num_classes=num_classes, noise=0.35)
     else:
         raise NotImplementedError("The chosen dataset does not exist...")
     
