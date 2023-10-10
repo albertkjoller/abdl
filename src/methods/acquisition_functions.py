@@ -138,7 +138,7 @@ class EPIG(AcquisitionFunction):
         posterior_target_samples    = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
         
         if kwargs['model'].__class__.__name__ == 'GaussianProcessClassifier':
-            assert posterior_pool_samples.min() != 0, "Model returns 0 probability for some samples!"
+            assert posterior_pool_samples.min() != 0,   "Model returns 0 probability for some samples!"
             assert posterior_target_samples.min() != 0, "Model returns 0 probability for some samples!"
 
             # model returns probabilities - so return log-probs with log

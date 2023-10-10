@@ -98,13 +98,13 @@ def parse_arguments():
     
     return args
 
-def get_dataset(args):
+def get_dataset(args, seed):
     if args.dataset == '2D_moons':
         num_classes = 2
-        Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_moons(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, noise=0.2)
+        Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_moons(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, noise=0.2, seed=seed)
     elif args.dataset == '2D_multiclass':
         num_classes = 4
-        Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_multiclass(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, num_classes=num_classes, noise=0.35)
+        Xtrain, ytrain, Xtest, ytest, Xpool, ypool = generate_multiclass(N_initial_per_class=args.size_initial, N_test=args.size_test, N_pool=args.size_pool, num_classes=num_classes, noise=0.35, seed=seed)
     else:
         raise NotImplementedError("The chosen dataset does not exist...")
     
@@ -152,15 +152,15 @@ def get_acquisition_fun(acq_fun: str, seed: int, args) -> Tuple[AcquisitionFunct
             n_target_input_samples=args.n_target_dist_samples, 
             seed=seed,
         ), target_input_dist
-    elif acq_fun == 'GeneralEPIG':
-        target_input_dist = get_target_input_distribution(args)
-        return GeneralEPIG(
-            query_n_points=args.samples_per_query, 
-            target_input_distribution=target_input_dist,
-            n_posterior_samples=args.n_posterior_samples, 
-            n_target_input_samples=args.n_target_dist_samples, 
-            seed=seed,
-        ), target_input_dist
+    # elif acq_fun == 'GeneralEPIG':
+    #     target_input_dist = get_target_input_distribution(args)
+    #     return GeneralEPIG(
+    #         query_n_points=args.samples_per_query, 
+    #         target_input_distribution=target_input_dist,
+    #         n_posterior_samples=args.n_posterior_samples, 
+    #         n_target_input_samples=args.n_target_dist_samples, 
+    #         seed=seed,
+    #     ), target_input_dist
 
     else:
         raise NotImplementedError("The chosen acquition function does not exist...")
@@ -216,7 +216,7 @@ if __name__ == '__main__':
             acq_fun, target_input_dist = get_acquisition_fun(acq_fun=acq_function, seed=seed, args=args)
 
             # Load data
-            Xtrain, ytrain, Xtest, ytest, Xpool, ypool, num_classes = get_dataset(args)
+            Xtrain, ytrain, Xtest, ytest, Xpool, ypool, num_classes = get_dataset(args, seed=seed)
             
             # Define model
             args.save_dir_model = save_path / f'{acq_fun.name}/seed{seed}'
