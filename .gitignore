@@ -94,3 +94,6 @@ data/
 *.pkl
 *.gif
 *.json
+reports/
+*.pt
+*.pth

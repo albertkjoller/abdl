@@ -54,10 +54,11 @@ class SimpleLLLA(nn.Module):
         self.fit_LLLA(Xtrain, ytrain)
         # Set predict function to posterior
         self.predict_proba = self.predict_posterior_proba
+        # self.predict_proba = self.predict_MAP_proba
 
     def predict_MAP_proba(self, X: torch.FloatTensor):
         outputs = self.forward(X)
-        return softmax(outputs, dim=1).cpu().numpy()
+        return softmax(outputs, dim=1).detach().cpu().numpy()
     
     def predict_posterior_proba(self, X: torch.FloatTensor, seed: int = 0):
         posterior_samples   = self.sample(X=X, n_samples=self.args.n_posterior_samples, seed=seed)

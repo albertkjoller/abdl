@@ -8,6 +8,7 @@ import torch
 from torch.nn.functional import softmax
 
 from .target_input_distribution import TargetInputDistribution
+from .epig import epig_from_logprobs, epig_from_probs
 
 class AcquisitionFunction:
     def __init__(self, name: str, query_n_points: Optional[int] = None):
@@ -87,7 +88,7 @@ class BALD(AcquisitionFunction):
         super().__init__(name='BALD', query_n_points=query_n_points)
 
     def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
-        if kwargs['model'].__class__.__name__ == 'GaussianProcessClassifier':
+        if kwargs['model'].__class__.__name__ in ['BinaryGenerativeGaussian', 'BayesianLogisticRegression', 'GaussianProcessClassifier']:
             # Returns log-probs
             posterior_samples   = kwargs['model'].sample(Xpool, n_samples=self.n_posterior_samples)
             pool_probs_sample   = torch.FloatTensor(posterior_samples)
@@ -105,8 +106,6 @@ class BALD(AcquisitionFunction):
         entropy_term        = - sum([pool_probs[:, cat] * log_probs[:, cat] for cat in range(pool_probs.shape[1])])
 
         # Sample the posterior and compute disagreement term
-        # disagreement_term   = (torch.softmax(posterior_samples, dim=0) * (posterior_samples - torch.logsumexp(posterior_samples, dim=0, keepdim=True)))
-        # disagreement_term   = disagreement_term.sum(axis=0).mean(axis=0)
         disagreement_term   = (pool_probs_sample * log_probs_sample).sum(axis=0).mean(axis=0)
         
         # Compute final acq-scores
@@ -115,11 +114,12 @@ class BALD(AcquisitionFunction):
 
 class EPIG(AcquisitionFunction):
 
-    def __init__(self, query_n_points, target_input_distribution: TargetInputDistribution, n_posterior_samples: int = 1000, n_target_input_samples: int = 100, seed: int = 0):
+    def __init__(self, query_n_points, epig_type: str, target_input_distribution: TargetInputDistribution, n_posterior_samples: int = 1000, n_target_input_samples: int = 100, seed: int = 0):
         # Make target-input distribution accesible
         self.target_input_distribution = target_input_distribution
 
         # Set class-wide sampling parameters
+        self.epig_type              = epig_type 
         self.n_posterior_samples    = n_posterior_samples
         self.n_target_input_samples = n_target_input_samples
         self.seed                   = seed
@@ -137,142 +137,14 @@ class EPIG(AcquisitionFunction):
         posterior_pool_samples      = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
         posterior_target_samples    = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
         
-        if kwargs['model'].__class__.__name__ == 'GaussianProcessClassifier':
-            assert posterior_pool_samples.min() != 0,   "Model returns 0 probability for some samples!"
-            assert posterior_target_samples.min() != 0, "Model returns 0 probability for some samples!"
-
-            # model returns probabilities - so return log-probs with log
-            logprobs_pool               = torch.log(torch.FloatTensor(posterior_pool_samples))[:, None, :, :, None]
-            logprobs_target             = torch.log(torch.FloatTensor(posterior_target_samples))[None, :, :, None, :]
+        if self.epig_type == 'logprobs':
+            acq_scores = epig_from_logprobs(Xpool, K, posterior_pool_samples, posterior_target_samples, kwargs)
+        elif self.epig_type == 'probs':
+            acq_scores = epig_from_probs(Xpool, K, posterior_pool_samples, posterior_target_samples, kwargs)
         else:
-            # model returns logits - so return log-probs with log_softmax
-            logprobs_pool               = torch.log_softmax(posterior_pool_samples, dim=0)[:, None, :, :, None]     
-            logprobs_target             = torch.log_softmax(posterior_target_samples, dim=0)[None, :, :, None, :]
+            raise NotImplementedError(f'Unknown EPIG type: {self.epig_type}')
 
-        # Compute acq_scores per point in the pool as the other approach scales very bad...
-        acq_scores = torch.zeros(len(Xpool))
-        for idx in tqdm(range(len(Xpool)), desc='Estimating EPIG...'):
-            logprobs_pool_              = logprobs_pool[:, :, :, idx, :].unsqueeze(3) 
-            logprobs_joint              = logprobs_pool_ + logprobs_target 
-            logprobs_joint              = torch.logsumexp(logprobs_joint, dim=2) - math.log(K) # [Cl, Cl, Np, Nt]
-            probs_joint                 = torch.exp(logprobs_joint)
-        
-            logprobs_independent        = (torch.logsumexp(logprobs_pool_, dim=2) - math.log(K)) + (torch.logsumexp(logprobs_target, dim=2) - math.log(K))
-            log_term                    = logprobs_joint - logprobs_independent
-
-            acq_scores[idx]             = (probs_joint * log_term).sum(dim=[0, 1]).mean(dim=-1)
-
-        # logprobs_joint              = logprobs_pool + logprobs_target
-        # logprobs_joint              = torch.logsumexp(logprobs_joint, dim=2) - math.log(K) # [Cl, Cl, Np, Nt]
-        # probs_joint                 = torch.exp(logprobs_joint)
-
-        # logprobs_independent        = (torch.logsumexp(logprobs_pool, dim=2) - math.log(K)) + (torch.logsumexp(logprobs_target, dim=2) - math.log(K))
-        # log_term                    = logprobs_joint - logprobs_independent
-
-        # acq_scores                  = (probs_joint * log_term).sum(dim=[0, 1])
-        # acq_scores                  = acq_scores.mean(dim=-1)
         assert torch.all((acq_scores + 1e-6 >= 0) & (acq_scores <= math.inf)).item(), "Acquisition scores are not valid!"
-        
+
         # Sort values
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
-    
-    # def logmeanexp(x, dim: int, keepdim: bool = False):
-    #     """
-    #     Arguments:
-    #         x: Tensor[float]
-    #         dim: int
-    #         keepdim: bool
-
-    #     Returns:
-    #         Tensor[float]
-    #     """
-    #     return torch.logsumexp(x, dim=dim, keepdim=keepdim) - math.log(x.shape[dim])
-
-
-    # logprobs_pool               = torch.log_softmax(posterior_pool_samples, dim=0)
-    # logprobs_targ             = torch.log_softmax(posterior_target_samples, dim=0)
-
-    # # Estimate the log of the joint predictive distribution.
-    # logprobs_pool = logprobs_pool.permute(1, 2, 0)  # [K, N_p, Cl]
-    # logprobs_targ = logprobs_targ.permute(1, 2, 0)  # [K, N_t, Cl]
-    # logprobs_pool = logprobs_pool[:, :, None, :, None]  # [K, N_p, 1, Cl, 1]
-    # logprobs_targ = logprobs_targ[:, None, :, None, :]  # [K, 1, N_t, 1, Cl]
-    # logprobs_pool_targ_joint = logprobs_pool + logprobs_targ  # [K, N_p, N_t, Cl, Cl]
-    # logprobs_pool_targ_joint = logmeanexp(logprobs_pool_targ_joint, dim=0)  # [N_p, N_t, Cl, Cl]
-
-    # # Estimate the log of the marginal predictive distributions.
-    # logprobs_pool = logmeanexp(logprobs_pool, dim=0)  # [N_p, 1, Cl, 1]
-    # logprobs_targ = logmeanexp(logprobs_targ, dim=0)  # [1, N_t, 1, Cl]
-
-    # # Estimate the log of the product of the marginal predictive distributions.
-    # logprobs_pool_targ_joint_indep = logprobs_pool + logprobs_targ  # [N_p, N_t, Cl, Cl]
-
-    # # Estimate the conditional expected predictive information gain for each pair of examples.
-    # # This is the KL divergence between probs_pool_targ_joint and probs_pool_targ_joint_indep.
-    # probs_pool_targ_joint = torch.exp(logprobs_pool_targ_joint)  # [N_p, N_t, Cl, Cl]
-    # log_term = logprobs_pool_targ_joint - logprobs_pool_targ_joint_indep  # [N_p, N_t, Cl, Cl]
-    # scores = torch.sum(probs_pool_targ_joint * log_term, dim=(-2, -1))  # [N_p, N_t]
-    # return scores  # [N_p, N_t]
-
-
-# class GeneralEPIG(AcquisitionFunction):
-
-#     def __init__(self, query_n_points, target_input_distribution: TargetInputDistribution, n_posterior_samples: int = 1000, n_target_input_samples: int = 100, seed: int = 0):
-#         # Make target-input distribution accesible
-#         self.target_input_distribution = target_input_distribution
-
-#         # Set class-wide sampling parameters
-#         self.n_posterior_samples    = n_posterior_samples
-#         self.n_target_input_samples = n_target_input_samples
-#         self.seed                   = seed
-
-#         super().__init__(name='EPIG', query_n_points=query_n_points)
-
-#     def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
-#         K, M        = self.n_posterior_samples, self.n_target_input_samples
-
-#         # Sample x* values from the target input distribution
-#         Xstar                       = self.target_input_distribution.sample(M, seed=self.seed)
-#         self.Xstar                  = Xstar
-
-#         # Extract predictive probabilities for target samples and all points in the pool by exploiting Monte Carlo sampling of the posterior 
-#         posterior_pool_samples      = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
-#         posterior_target_samples    = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
-        
-#         if kwargs['model'].__class__.__name__ == 'GaussianProcessClassifier':
-#             assert posterior_pool_samples.min() != 0, "Model returns 0 probability for some samples!"
-#             assert posterior_target_samples.min() != 0, "Model returns 0 probability for some samples!"
-
-#             # model returns probabilities - so return log-probs with log
-#             logprobs_pool               = torch.log(torch.FloatTensor(posterior_pool_samples))[:, None, :, :, None]
-#             logprobs_target             = torch.log(torch.FloatTensor(posterior_target_samples))[None, :, :, None, :]
-#         else:
-#             # model returns logits - so return log-probs with log_softmax
-#             logprobs_pool               = torch.log_softmax(posterior_pool_samples, dim=0)[:, None, :, :, None]     
-#             logprobs_target             = torch.log_softmax(posterior_target_samples, dim=0)[None, :, :, None, :]
-
-#         # Define distribution and sample targets
-#         dist = torch.distributions.Categorical
-#         ystar_samples               = dist(probs=torch.exp(logprobs_target)[0, :, :, 0, :].permute(2, 1, 0)).sample()
-
-#         # Compute acq_scores per point in the pool as the other approach scales very bad...
-#         acq_scores = torch.zeros(len(Xpool))
-#         for idx in tqdm(range(len(Xpool)), desc='Estimating EPIG...'):
-
-#             logprobs_pool_              = logprobs_pool[:, :, :, idx, :].unsqueeze(3) 
-#             y_samples                   = torch.vstack([dist(probs=torch.exp(logprobs_pool_)[:, 0, :, 0, 0].T).sample() for _ in range(ystar_samples.shape[0])])
-
-#             logprobs_pool_              = torch.hstack([torch.stack([logprobs_pool_[val, :, j, :, :] for j, val in enumerate(sample_)]) for i, sample_ in enumerate(y_samples)]).squeeze([2, 3])
-
-#             logprobs_target_            = torch.hstack([torch.stack([logprobs_target[:, val, j, :, i] for j, val in enumerate(sample_)]) for i, sample_ in enumerate(ystar_samples)]).squeeze(2)
-
-#             logprobs_joint              = logprobs_pool_ + logprobs_target_
-            
-#             log_term        = math.log(K) + torch.logsumexp(logprobs_joint, dim=0) - torch.logsumexp(logprobs_pool_, dim=0) - torch.logsumexp(logprobs_target_, dim=0)
-#             acq_scores[idx] = log_term.mean(dim=-1)
-
-#         assert torch.all((acq_scores + 1e-6 >= 0) & (acq_scores <= math.inf)).item(), "Acquisition scores are not valid!"
-        
-#         # Sort values
-#         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
-    

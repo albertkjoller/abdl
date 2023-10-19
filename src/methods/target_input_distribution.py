@@ -2,6 +2,8 @@ from typing import Union, List
 import numpy as np
 import matplotlib.pyplot as plt
 
+from scipy.stats import norm
+
 class TargetInputDistribution:
 
     def __init__(self, name: str):
@@ -12,7 +14,40 @@ class TargetInputDistribution:
     
     def sample(self, n_samples: int = 100):
         return None
+
+class Dirac(TargetInputDistribution):
     
+    def __init__(self, loc: Union[float, int], ymax=float):
+        # Set parameters of the distribution
+        self.loc    = loc        
+        self.ymax   = ymax
+        
+        super().__init__(name='Dirac')
+
+    def sample(self, n_samples: int, seed: int = 0):
+        # Sample from a univariate normal
+        return self.loc * np.ones(n_samples)
+
+class UnivariateGaussian(TargetInputDistribution):
+    
+    def __init__(self, mu: Union[float, int], sigma: Union[float, int]):
+        # Set parameters of the distribution
+        self.mu     = mu        
+        self.sigma  = sigma
+        
+        # Define distribution
+        self.dist   = norm(loc=mu, scale=sigma)
+
+        super().__init__(name='UnivariateGaussian')
+
+    def sample(self, n_samples: int, seed: int = 0):
+        # Set seed for consistency 
+        np.random.seed(seed)
+
+        # Sample from a univariate normal
+        return self.dist.rvs(n_samples)
+
+
 class MultivariateGaussian(TargetInputDistribution):
 
     def __init__(self, mu: Union[list, np.ndarray], Sigma: Union[List[list], np.ndarray]):

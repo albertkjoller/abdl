@@ -239,17 +239,18 @@ if __name__ == '__main__':
                 save_dir=save_path,
             )
 
-# python run.py --dataset 2D_moons --size_initial 2 --size_test 100 --size_pool 500 --model 'SimpleLLLA' --acq_functions 'Random' 'VariationRatios' 'MinimumMargin' 'Entropy' 'BALD' --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --save_dir C:/Users/alber/Desktop/DTU/3_HCAI/ActiveBayesianDeepLearning/abdl/reports --seed_range 0 10 --experiment_name new_2D_moons    
-# python run.py --experiment_name 2D_multi --dataset 2D_multiclass --size_initial 2 --size_test 200 --size_pool 500 --model SimpleLLLA --lr 1e-4 --epochs 50 --val_every_step 10 --model_verbose 0 --acq_functions Random VariationRatios MinimumMargin Entropy BALD --num_queries 50 --samples_per_query 1 --n_posterior_samples 2500 --save_dir C:\Users\alber\Desktop\DTU\3_HCAI\ActiveBayesianDeepLearning\abdl\reports --seed_range 0 100 --save_fig
-                
-                
+# BINARY POOLSIZE:
+# python run.py --experiment_name 2D_binary_poolsize --dataset 2D_moons --size_initial 2 --size_test 200 --size_pool 100 --model GPClassifier --model_verbose 0 --acq_functions EPIG --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --save_dir /work3/s194253/projects/abdl/reports/ --seed_range 0 100
+# python run.py --experiment_name 2D_binary_poolsize --dataset 2D_moons --size_initial 2 --size_test 200 --size_pool 1000 --model GPClassifier --model_verbose 0 --acq_functions EPIG --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --save_dir /work3/s194253/projects/abdl/reports/ --seed_range 0 100
+# python run.py --experiment_name 2D_binary_poolsize --dataset 2D_moons --size_initial 2 --size_test 200 --size_pool 10000 --model GPClassifier --model_verbose 0 --acq_functions EPIG --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --save_dir /work3/s194253/projects/abdl/reports/ --seed_range 0 100
 
-### BINARY ###
-# python run.py --dataset 2D_moons --size_initial 2 --size_test 100 --size_pool 500 --model 'GPClassifier' --acq_functions 'Random' 'VariationRatios' 'MinimumMargin' 'Entropy' 'BALD' 'EPIG' --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --target_dist '2DGaussian_v1' --save_dir C:/Users/alber/Desktop/DTU/3_HCAI/ActiveBayesianDeepLearning/abdl/reports --seed_range 0 10 --experiment_name 2D_moons    
-### BINARY VIZ ###
-# python run.py --dataset 2D_moons --size_initial 2 --size_test 100 --size_pool 500 --model 'GPClassifier' --acq_functions 'Random' 'VariationRatios' 'MinimumMargin' 'Entropy' 'BALD' 'EPIG' --num_queries 10 --samples_per_query 1 --n_posterior_samples 5000 --target_dist '2DGaussian_v1' --save_dir C:/Users/alber/Desktop/DTU/3_HCAI/ActiveBayesianDeepLearning/abdl/reports --seed_range 0 0 --experiment_name 2D_moons_viz --save_fig --animate 
+# MULTICLASS POOLSIZE:
+# python run.py --experiment_name 2D_multiclass_poolsize --dataset 2D_multiclass --size_initial 2 --size_test 200 --size_pool 100 --model GPClassifier --model_verbose 0 --acq_functions EPIG --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --save_dir /work3/s194253/projects/abdl/reports/ --seed_range 0 100
+# python run.py --experiment_name 2D_multiclass_poolsize --dataset 2D_multiclass --size_initial 2 --size_test 200 --size_pool 1000 --model GPClassifier --model_verbose 0 --acq_functions EPIG --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --save_dir /work3/s194253/projects/abdl/reports/ --seed_range 0 100
+# python run.py --experiment_name 2D_multiclass_poolsize --dataset 2D_multiclass --size_initial 2 --size_test 200 --size_pool 10000 --model GPClassifier --model_verbose 0 --acq_functions EPIG --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --save_dir /work3/s194253/projects/abdl/reports/ --seed_range 0 100
 
-### MULTI-CLASS ###
-# python run.py --dataset 2D_multiclass --size_initial 2 --size_test 200 --size_pool 500 --model 'GPClassifier' --acq_functions 'Random' 'VariationRatios' 'MinimumMargin' 'Entropy' 'BALD' 'EPIG' --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --target_dist '2DGaussian_v1' --save_dir C:/Users/alber/Desktop/DTU/3_HCAI/ActiveBayesianDeepLearning/abdl/reports --seed_range 0 10 --experiment_name 2D_multiclass
-### BINARY VIZ ###
-# python run.py --dataset 2D_multiclass --size_initial 2 --size_test 200 --size_pool 500 --model 'GPClassifier' --acq_functions 'Random' 'VariationRatios' 'MinimumMargin' 'Entropy' 'BALD' 'EPIG' --num_queries 10 --samples_per_query 1 --n_posterior_samples 5000 --target_dist '2DGaussian_v1' --save_dir C:/Users/alber/Desktop/DTU/3_HCAI/ActiveBayesianDeepLearning/abdl/reports --seed_range 0 0 --experiment_name 2D_multiclass_viz --save_fig --animate 
+
+# EPIG:
+# python run.py --experiment_name epig_test --dataset 2D_moons --size_initial 5 --size_test 200 --size_pool 100 --model GPClassifier --model_verbose 0 --acq_functions EPIG --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --save_dir /work3/s194253/projects/abdl/reports/ --seed_range 0 1 --save_fig --target_dist 2DGaussian --mu 2.1 0.45 --sigma 2 --n_target_dist_samples 1000
+# python run.py --experiment_name epig_test --dataset 2D_moons --size_initial 5 --size_test 200 --size_pool 100 --model GPClassifier --model_verbose 0 --acq_functions EPIG --num_queries 50 --samples_per_query 1 --n_posterior_samples 5000 --save_dir /work3/s194253/projects/abdl/reports/ --seed_range 0 1 --save_fig --target_dist 2DGaussian --mu -2.0 0.45 --sigma 2 --n_target_dist_samples 1000
+         
