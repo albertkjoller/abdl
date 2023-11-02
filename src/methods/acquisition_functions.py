@@ -126,7 +126,7 @@ class EPIG(AcquisitionFunction):
 
         super().__init__(name='EPIG', query_n_points=query_n_points)
 
-    def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+    def __call__(self, Xpool: np.ndarray, return_sorted: bool = True, save_probs=False, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         K, M        = self.n_posterior_samples, self.n_target_input_samples
 
         # Sample x* values from the target input distribution
@@ -134,9 +134,14 @@ class EPIG(AcquisitionFunction):
         self.Xstar                  = Xstar
 
         # Extract predictive probabilities for target samples and all points in the pool by exploiting Monte Carlo sampling of the posterior 
+        ### NOTE: we sample target and pool posterior probs once using the same seed, which is why we can use the samples for all MC calculations
         posterior_pool_samples      = kwargs['model'].sample(np.vstack(Xpool), n_samples=self.n_posterior_samples, seed=self.seed)
         posterior_target_samples    = kwargs['model'].sample(np.vstack(Xstar), n_samples=self.n_posterior_samples, seed=self.seed)
         
+        if save_probs:
+            torch.save(torch.tensor(posterior_pool_samples).permute(2, 1, 0), f"{kwargs['model'].__class__.__name__}_posterior_pool_samples_loc{self.target_input_distribution.loc}.pt")
+            torch.save(torch.tensor(posterior_target_samples).permute(2, 1, 0), f"{kwargs['model'].__class__.__name__}_posterior_target_samples_loc{self.target_input_distribution.loc}.pt")
+
         if self.epig_type == 'logprobs':
             acq_scores = epig_from_logprobs(Xpool, K, posterior_pool_samples, posterior_target_samples, kwargs)
         elif self.epig_type == 'probs':
@@ -148,3 +153,4 @@ class EPIG(AcquisitionFunction):
 
         # Sort values
         return self.order_acq_scores(acq_scores=acq_scores, return_sorted=return_sorted)
+    

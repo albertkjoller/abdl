@@ -14,10 +14,7 @@ def epig_from_logprobs(Xpool, K, posterior_pool_samples, posterior_target_sample
 
     # Compute acq_scores per point in the pool as the other approach scales very bad for memory...
     acq_scores = torch.zeros(len(Xpool))
-
-    # torch.save(logprobs_pool, r'C:\Users\alber\Desktop\DTU\3_HCAI\ActiveBayesianDeepLearning\abdl\notebooks\logprobs_pool.pt')
-    # torch.save(logprobs_target, r'C:\Users\alber\Desktop\DTU\3_HCAI\ActiveBayesianDeepLearning\abdl\notebooks\logprobs_target.pt')
-
+    
     for idx in tqdm(range(len(Xpool)), desc='Estimating EPIG...'):
         logprobs_pool_              = logprobs_pool[:, :, :, idx, :].unsqueeze(3) 
         logprobs_joint              = logprobs_pool_ + logprobs_target 
